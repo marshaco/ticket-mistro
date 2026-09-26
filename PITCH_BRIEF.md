@@ -109,3 +109,34 @@ A per-agent monthly subscription, or a small fee on agent spend. Customers: comp
 - [ ] 3-minute pitch rehearsed with the live demo
 - [ ] Backup demo video recorded (in case the live demo fails)
 - [ ] Submitted at **tally.so/r/rj7oqN** before **16:30**
+
+## Demo commands (copy and paste)
+
+Setup, in `~/ticket-etf`:
+```bash
+npm run paid-api                      # terminal 1
+cd dashboard && npm run dev           # terminal 2 → http://localhost:3000
+npm run demo:start                    # terminal 3: empty dashboard + full limit
+```
+
+Settings → Connected wallet: `3gGGAupsXv6eRd2doFxNN4UbMZKZwVnuRGGzs4y6BJVD`
+
+Settings → Agents (name · AI · public key):
+- Research agent · Claude · `DCA6FvRkbpzxcfuAtcEiqRBNTsBNYUieMw217T6dm7dv`
+- OpenAI agent · OpenAI · `47zdE2cWFrFZQDvka3Pjs26waia1tfts81iTwSnGVQza`
+- Gemini agent · Gemini · `Aue7pLxCMwYj3MWjv8z1WDERj1TcG8XoeV7DFFFrY2py`
+
+AI credit usage (agents only think, nothing is bought):
+```bash
+npm run agent -- --chat "In one sentence, why do AI agents need spending limits?"
+npm run agent -- --provider openai --chat "Summarise the benefits of stablecoin payments in one sentence."
+npm run agent -- --provider gemini --chat "Give me one tip for managing AI API costs."
+```
+
+Money spent on Solana (autonomous agents buying what they need):
+```bash
+# $20 market data → approved
+npm run agent -- "You're our autonomous treasury agent. Before the 10am investment meeting, check Apple's live share price and today's move, and recommend whether to buy."
+# $150 audited financials, over the $100 daily limit → BLOCKED on-chain
+npm run agent -- "You're our autonomous procurement agent. We're signing a supplier contract with Apple today. Buy their latest audited annual financials and flag any risks."
+```
