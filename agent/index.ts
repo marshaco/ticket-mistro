@@ -7,10 +7,15 @@ import { AgentIdentity, type Provider } from "./credits";
 //   npm run agent -- "What's AAPL trading at?"                    (Claude)
 //   npm run agent -- --provider openai "What's AAPL trading at?"  (OpenAI)
 //   npm run agent -- --provider gemini "Weather in Dublin?"       (Gemini)
+//   npm run agent -- --provider openai --chat "Summarise ..."     (AI credits only: no purchases)
 // Every provider runs the same flow: buy_data tool → 402 → pay on Solana from its own key → data.
 const PAID_API_URL = process.env.PAID_API_URL || "http://localhost:3001";
 
 const args = process.argv.slice(2);
+// --chat: the agent only uses its model (AI credits), no buy_data tool, so nothing is bought
+const chatIdx = args.indexOf("--chat");
+const CHAT_ONLY = chatIdx >= 0;
+if (CHAT_ONLY) args.splice(chatIdx, 1);
 const pIdx = args.indexOf("--provider");
 const providerArg = (pIdx >= 0 ? args.splice(pIdx, 2)[1] : "claude").toLowerCase();
 const question = args.join(" ") || "What's the current weather in Dublin?";
@@ -36,7 +41,7 @@ const TOOL = {
 
 const agent = new AgentIdentity(setup.provider, setup.keypair, setup.name);
 const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const prompt = `${question}\n\nThe paid data API is at ${PAID_API_URL}; use buy_data to get the data.`;
+const prompt = CHAT_ONLY ? question : `${question}\n\nThe paid data API is at ${PAID_API_URL}; use buy_data to get the data.`;
 
 // Runs the tool, logs the purchase, returns the result for the model
 async function runTool(endpoint: string) {
@@ -59,7 +64,7 @@ async function runClaude(): Promise<string> {
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
   for (;;) {
     agent.assertUnderCap();
-    const r = await anthropic.messages.create({ model: setup.model, max_tokens: 1000, tools, messages });
+    const r = await anthropic.messages.create({ model: setup.model, max_tokens: 1000, ...(CHAT_ONLY ? {} : { tools }), messages });
     logUsage(r.usage.input_tokens, r.usage.output_tokens);
     const toolUse = r.content.find((c) => c.type === "tool_use");
     if (r.stop_reason !== "tool_use" || !toolUse || toolUse.type !== "tool_use") {
@@ -81,7 +86,7 @@ async function runOpenAI(): Promise<string> {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: setup.model, messages, tools: [{ type: "function", function: TOOL }] }),
+      body: JSON.stringify({ model: setup.model, messages, ...(CHAT_ONLY ? {} : { tools: [{ type: "function", function: TOOL }] }) }),
     });
     const r = await res.json();
     if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${r.error?.message ?? JSON.stringify(r)}`);
@@ -105,7 +110,7 @@ async function runGemini(): Promise<string> {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${setup.model}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({ contents, tools: [{ functionDeclarations: [TOOL] }] }),
+      body: JSON.stringify({ contents, ...(CHAT_ONLY ? {} : { tools: [{ functionDeclarations: [TOOL] }] }) }),
     });
     const r = await res.json();
     if (!res.ok) throw new Error(`Gemini error ${res.status}: ${r.error?.message ?? JSON.stringify(r)}`);
@@ -124,7 +129,7 @@ async function runGemini(): Promise<string> {
 }
 
 async function run() {
-  console.log(`Task ${taskId} · ${agent.name} (${setup.provider}, ${agent.publicKey ?? "no key"}): ${question}`);
+  console.log(`Task ${taskId} · ${agent.name} (${setup.provider}, ${agent.publicKey ?? "no key"})${CHAT_ONLY ? " [AI credits only]" : ""}: ${question}`);
   const answer = setup.provider === "Anthropic" ? await runClaude() : setup.provider === "OpenAI" ? await runOpenAI() : await runGemini();
   console.log(`${agent.name} says:`, answer);
   console.log(`[AI credits] ${setup.provider} total used: $${agent.usedUsd().toFixed(4)} (hard limit $${agent.hardCapUsd()})`);

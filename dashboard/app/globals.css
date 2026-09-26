@@ -307,3 +307,10 @@ tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
 .onboarding-panel ol { display: grid; gap: 8px; padding-left: 18px; color: #9aa396; font-size: 12px; }
 .onboarding-panel ol b { color: #e7ebdf; }
 .onboarding-cta { justify-self: start; text-decoration: none; }
+
+/* Two clearly separate sections: AI credit usage, and money spent on Solana */
+.limits-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.limits-grid-1 { grid-template-columns: 1fr; margin-top: 14px; }
+.money-section { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+.money-section > .overview-grid { margin-top: 4px; }
+@media (max-width: 1100px) { .limits-grid-3 { grid-template-columns: 1fr; } }

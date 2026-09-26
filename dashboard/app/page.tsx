@@ -117,7 +117,9 @@ function formatCountdown(seconds: number) {
 type TrackedView = { key: string; mode: "limit" | "target"; limit: number; target: number; expires?: string; used: number };
 
 function money(n: number) {
-  return `$${n.toFixed(n !== 0 && Math.abs(n) < 1 ? 4 : 2)}`;
+  // tiny per-call AI costs need more decimals to not show as $0.0000
+  const d = n === 0 ? 2 : Math.abs(n) < 0.01 ? 6 : Math.abs(n) < 1 ? 4 : 2;
+  return `$${n.toFixed(d)}`;
 }
 
 // One tracked thing, read-only: shows whatever the customer configured on the Settings page.
@@ -280,6 +282,28 @@ export default function Home() {
           )}
           {!onboarding && (
             <>
+          {isLive && credits && (
+            <section className="limits-section" aria-labelledby="credits-title">
+              <div className="section-label"><span className="label-mark budget-mark" /> AI CREDIT USAGE</div>
+              <h2 id="credits-title" className="limits-title">Model usage per provider across your agents, tracked as set in <Link href="/settings" className="edit-link">Settings</Link>.</h2>
+              <div className="limits-grid limits-grid-3">
+                {credits.map((c) => (
+                  <TrackCard
+                    key={`${c.provider}-${c.mode}-${c.limit}-${c.target}-${c.expires}`}
+                    item={c}
+                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}`}
+                    limitNote={`Hard limit · agents stop calling the model (grant $${c.grantUsd})`}
+                    footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
+                    now={now}
+                    />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="money-section">
+            <div className="section-label"><span className="label-mark payments-mark" /> MONEY SPENT · ON SOLANA</div>
+            <h2 className="limits-title">What your agents paid for from the company vault. Hard limits are enforced on-chain by Squads.</h2>
           <section className="overview-grid" aria-label="Today's budget and blocked event">
             <article className="budget-panel">
               <div className="panel-topline">
@@ -323,11 +347,8 @@ export default function Home() {
             </article>
           </section>
 
-          {isLive && credits && (
-            <section className="limits-section" aria-labelledby="limits-title">
-              <div className="section-label"><span className="label-mark budget-mark" /> LIMITS &amp; TARGETS</div>
-              <h2 id="limits-title" className="limits-title">What you&apos;re tracking, as set in <Link href="/settings" className="edit-link">Settings</Link>: hard limits block spend, spend targets track how much is still to spend.</h2>
-              <div className="limits-grid">
+            {isLive && credits && (
+              <div className="limits-grid limits-grid-1">
                 <TrackCard
                   key={`purchases-${live.purchases.mode}-${live.purchases.limit}-${live.purchases.target}`}
                   item={live.purchases}
@@ -336,46 +357,8 @@ export default function Home() {
                   footnote={`${blockedCount} payment${blockedCount === 1 ? "" : "s"} rejected on-chain · on-chain safety limit $${live.purchases.limit}/day always applies`}
                   now={now}
                 />
-                {credits.map((c) => (
-                  <TrackCard
-                    key={`${c.provider}-${c.mode}-${c.limit}-${c.target}-${c.expires}`}
-                    item={c}
-                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}`}
-                    limitNote={`Hard limit · agents stop calling the model (grant $${c.grantUsd})`}
-                    footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
-                    now={now}
-                    />
-                ))}
               </div>
-
-              <div className="table-frame task-frame">
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th scope="col">TASK</th>
-                        <th scope="col">AGENT · AI PROVIDER</th>
-                        <th scope="col">PURCHASES (ON-CHAIN)</th>
-                        <th scope="col">BLOCKED</th>
-                        <th scope="col">AI COST</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {live.tasks.map((t) => (
-                        <tr key={t.taskId}>
-                          <td><span className="task-label">{t.taskId}</span></td>
-                          <td><span className="time-sub">{t.agents.length ? t.agents.join(", ") : "—"}</span></td>
-                          <td><span className="amount-main">${formatAmount(t.purchases)}</span></td>
-                          <td>{t.blocked > 0 ? <span className="blocked-tag">{t.blocked} BLOCKED</span> : <span className="time-sub">—</span>}</td>
-                          <td><span className="amount-main">{t.aiUsd > 0 ? `$${t.aiUsd.toFixed(4)}` : "—"}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
-          )}
+            )}
 
           <section className="payments-section" id="payments" aria-labelledby="payments-title">
             <div className="payments-heading">
@@ -414,7 +397,39 @@ export default function Home() {
               <div className="table-footer"><span><span className="footer-check">✓</span> {isLive ? `${paidCount} confirmed on-chain · ${blockedCount} rejected by Squads` : "All successful payments confirmed"}</span><span>SHOWING {payments.length} OF {payments.length}</span></div>
             </div>
           </section>
+          </div>
 
+          {isLive && credits && (
+            <section className="limits-section" aria-label="Spend by task">
+              <div className="section-label"><span className="label-mark budget-mark" /> BY TASK</div>
+              <div className="table-frame task-frame">
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">TASK</th>
+                        <th scope="col">AGENT · AI PROVIDER</th>
+                        <th scope="col">PURCHASES (ON-CHAIN)</th>
+                        <th scope="col">BLOCKED</th>
+                        <th scope="col">AI COST</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {live.tasks.map((t) => (
+                        <tr key={t.taskId}>
+                          <td><span className="task-label">{t.taskId}</span></td>
+                          <td><span className="time-sub">{t.agents.length ? t.agents.join(", ") : "—"}</span></td>
+                          <td><span className="amount-main">${formatAmount(t.purchases)}</span></td>
+                          <td>{t.blocked > 0 ? <span className="blocked-tag">{t.blocked} BLOCKED</span> : <span className="time-sub">—</span>}</td>
+                          <td><span className="amount-main">{t.aiUsd > 0 ? `$${t.aiUsd.toFixed(4)}` : "—"}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          )}
             </>
           )}
           <footer className="page-footer"><span>AGENTCARD TREASURY</span><span>READ-ONLY · SOLANA DEVNET</span></footer>

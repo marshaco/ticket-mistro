@@ -80,10 +80,11 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 0. **Start empty** (Colin runs `npm run demo:start` beforehand): the dashboard says "Nothing tracked yet".
 1. **Settings:** "Paste your Squads address, then each agent's public key, and pick Claude, OpenAI or Gemini for it. Only public keys, nothing secret." Choose a hard limit or a spend target.
 2. **Dashboard:** "Everything our agents spend: purchases on Solana, and AI credits for each provider." Still at zero.
-3. **Ask the Gemini agent** "What's the weather in Dublin?" It pays $10 on Solana and gets live data; the purchase card and the Gemini credit card both move.
-4. **Ask the Claude agent** "What's Apple trading at?" It pays $20; the Claude card moves.
-5. **Ask** "Get Apple's annual financials." That costs $150, over the $100 limit: **Solana rejects it**, a red row appears, and the explorer shows the rejected transaction.
-6. **Close on the credit cards:** "Same controls for your AI credits: a limit so agents can't burn them, or a target so you don't waste the free ones."
+3. **AI credit usage (three commands):** each agent just thinks, no purchases. The Claude, OpenAI and Gemini credit cards each move:
+   `npm run agent -- --chat "..."`, `npm run agent -- --provider openai --chat "..."`, `npm run agent -- --provider gemini --chat "..."`
+4. **Money spent (two commands):** "What's Apple trading at?" pays $20 on Solana (the Money spent section moves). "Get Apple's annual financials" costs $150, over the $100 limit: **Solana rejects it**, a red row appears, and the explorer shows the rejected transaction.
+5. **Point at the two sections:** AI credit usage at the top, money spent on Solana below. Same controls for both.
+6. **Close:** "Same controls for your AI credits: a limit so agents can't burn them, or a target so you don't waste the free ones."
 
 ## Future ideas (roadmap slide)
 
