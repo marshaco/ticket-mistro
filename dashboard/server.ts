@@ -116,6 +116,7 @@ async function loadSummary(): Promise<Summary> {
   const memoEntries = signatures.flatMap((entry) => {
     const memo = (entry.memo ?? "").replace(/^\[\d+\]\s*/, "").trim();
     if (!memo.includes("task:")) return [];
+    if (memo.includes("task:admin-test")) return []; // wallet admin tests, not agent activity
     const parsed = /^task:([^|]+)\|req:([^|]+)$/.exec(memo);
     return [{
       signature: entry.signature,
