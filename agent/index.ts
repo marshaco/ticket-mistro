@@ -1,3 +1,4 @@
+import "dotenv/config";
 import Anthropic from "@anthropic-ai/sdk";
 import { buyData } from "./buy-data-tool";
 
@@ -7,6 +8,7 @@ if (!apiKey) {
 }
 
 const anthropic = new Anthropic({ apiKey });
+const PAID_API_URL = process.env.PAID_API_URL || "http://localhost:3001";
 
 const tools = [{
   name: "buy_data",
@@ -24,7 +26,7 @@ async function run() {
   const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: "What's the current weather in Dublin? Use buy_data to get it." }
+    { role: "user", content: `What's the current weather in Dublin? Use buy_data on ${PAID_API_URL}/weather to get it.` }
   ];
 
   let response = await anthropic.messages.create({
