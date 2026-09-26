@@ -46,7 +46,8 @@ npm run paid-api                  # terminal 1 → http://localhost:3001
 cd dashboard && npm run dev       # terminal 2 → http://localhost:3000 (top bar must say LIVE DATA)
 npm run agent -- "What's AAPL trading at?"   # terminal 3; rows appear within ~5s
 npx tsx scripts/simulate-other-agents.ts     # once: labelled OpenAI/Gemini usage for the multi-provider view
-npx tsx scripts/reset-limit.ts    # owner only: refill the agent to 100/100 before the demo
+npm run demo:start                # owner only, right before the demo: refill the limit to 100/100 and
+                                  # clear the dashboard view (history stays on-chain; `-- --all` shows it again)
 ```
 The agent's question is hard-coded in `agent/index.ts` (the `role: "user"` message; default: Dublin weather). Edit it to change what the agent buys, e.g. "Get Apple's latest annual financials" or "What's AAPL trading at?".
 

@@ -1,6 +1,7 @@
 // Live AgentCard data from Solana devnet. Read-only: needs no keypairs.
 // Env (repo-root .env): RPC_URL, VAULT_ADDRESS, TOKEN_MINT, SPENDING_LIMIT_ADDRESS.
 import { readProviders, readUsage } from "../../lib-usage";
+import fs from "fs";
 import path from "path";
 import { Connection, PublicKey } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
@@ -78,6 +79,8 @@ async function build(): Promise<Summary> {
   if (!RPC_URL || !VAULT_ADDRESS || !TOKEN_MINT || !SPENDING_LIMIT_ADDRESS) {
     throw new Error("RPC_URL, VAULT_ADDRESS, TOKEN_MINT and SPENDING_LIMIT_ADDRESS must be set in the repo-root .env");
   }
+  // DEMO_SINCE (ISO time or unix seconds): only show activity after the demo started
+  const since = parseSince(readDemoSince() ?? process.env.DEMO_SINCE);
   const connection = new Connection(RPC_URL, "confirmed");
   const vault = new PublicKey(VAULT_ADDRESS);
 
@@ -95,6 +98,7 @@ async function build(): Promise<Summary> {
     if (memo.startsWith("task:admin-test")) continue; // wallet admin tests, not agent activity
     const info = await loadTx(connection, s.signature);
     if (!info) continue;
+    if ((s.blockTime ?? 0) < since) continue;
     const errorCode = (s.err as { InstructionError?: [number, { Custom?: number }] } | null)?.InstructionError?.[1]?.Custom ?? null;
     payments.push({
       signature: s.signature,
@@ -122,7 +126,7 @@ async function build(): Promise<Summary> {
   }
 
   // AI credit usage is reported off-chain by agents (agent/credits.ts, or POST /api/usage)
-  const usage = readUsage();
+  const usage = readUsage().filter((u) => u.time / 1000 >= since);
   const providerCfg = readProviders();
   const providerNames = [...new Set([...Object.keys(providerCfg), ...usage.map((u) => u.provider)])];
   const credits: Credits[] = providerNames.map((provider) => {
@@ -169,6 +173,21 @@ async function build(): Promise<Summary> {
     payments,
     updatedAt: Date.now(),
   };
+}
+
+// Written by `npm run demo:start` (scripts/demo-start.ts); read on every refresh so no restart is needed.
+function readDemoSince(): string | undefined {
+  try {
+    return fs.readFileSync(path.resolve(process.cwd(), "..", "data", "demo-since"), "utf8").trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseSince(v: string | undefined): number {
+  if (!v) return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : Math.floor(Date.parse(v) / 1000) || 0;
 }
 
 export async function GET() {

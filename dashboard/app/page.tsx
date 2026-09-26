@@ -124,7 +124,8 @@ function LimitCard(props: {
   footnote: string;
 }) {
   const { kicker, unit, decimals, used, hardLimit, hardLabel, target, targetLabel, footnote } = props;
-  const fmt = (n: number) => `${unit}${n.toFixed(decimals)}`;
+  // 2 decimals normally; more only for sub-dollar amounts (e.g. a single model call)
+  const fmt = (n: number) => `${unit}${n.toFixed(n !== 0 && Math.abs(n) < 1 ? decimals : 2)}`;
   const hardPct = hardLimit > 0 ? Math.min((used / hardLimit) * 100, 100) : 100;
   const hardState = hardPct >= 100 ? "over" : hardPct >= 80 ? "warning" : "healthy";
   const targetPct = target > 0 ? Math.min((used / target) * 100, 100) : 100;
@@ -346,7 +347,7 @@ export default function Home() {
                     </thead>
                     <tbody>
                       {live.tasks.map((t) => (
-                        <tr key={t.taskId} className={t.blocked > 0 ? "row-blocked" : undefined}>
+                        <tr key={t.taskId}>
                           <td><span className="task-label">{t.taskId}</span></td>
                           <td><span className="time-sub">{t.agents.length ? t.agents.join(", ") : "—"}</span></td>
                           <td><span className="amount-main">${formatAmount(t.purchases)}</span></td>
