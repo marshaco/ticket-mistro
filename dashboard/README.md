@@ -31,6 +31,10 @@ npm run start
 
 `npm run start` serves the most recent production build at [http://localhost:3000](http://localhost:3000).
 
+## Live data
+
+With the repo-root `.env` present (`RPC_URL`, `VAULT_ADDRESS`, `TOKEN_MINT`, `SPENDING_LIMIT_ADDRESS`), the page polls `/api/summary` every 5 seconds and shows real devnet data: the vault's agent payments (task from the memo), amounts, blocked payments (rejected on-chain by the Squads spending limit, error 6026), and the budget remaining from the Squads spending-limit account. The pill in the top bar says LIVE DATA. Without `.env` it falls back to the Phase 1 mock data below. No keypairs are needed.
+
 ## Phase 1 data
 
 Mock payments and the daily budget are defined in `app/page.tsx`. Task labels are parsed from the shared memo format `task:<taskId>|req:<requestId>`; an unrecognized memo is displayed as-is. Explorer links use the Solana devnet cluster and the displayed signatures are mock data, so they are not expected to resolve to real transactions.

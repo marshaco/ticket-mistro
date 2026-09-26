@@ -230,3 +230,9 @@ tbody tr:nth-child(2n) .agent-dot { background: #80aaa0; }
 @media (prefers-reduced-motion: reduce) {
 	*, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Live data: payments rejected on-chain by the Squads spending limit */
+tbody tr.row-blocked { background: #2a1b17; box-shadow: inset 3px 0 0 var(--red); }
+tbody tr.row-blocked:hover { background: #33201b; }
+tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
+.blocked-tag { margin-left: 8px; padding: 2px 6px; border: 1px solid #c85f49; border-radius: 3px; color: #ff907b; font-family: Consolas, monospace; font-size: 8px; letter-spacing: .5px; }
