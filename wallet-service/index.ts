@@ -7,7 +7,6 @@ import {
   PublicKey,
   Transaction,
   TransactionInstruction,
-  sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import { getMint } from '@solana/spl-token';
 import * as multisig from '@sqds/multisig';
@@ -58,6 +57,8 @@ export async function payAsAgent(params: PayParams): Promise<PayResult> {
     const memo = `task:${params.taskId}|req:${params.requestId}`;
 
     const tx = new Transaction().add(
+      // SPL Memo so the tag shows up in getSignaturesForAddress / explorers (also on failed txs)
+      new TransactionInstruction({ programId: MEMO_PROGRAM_ID, keys: [], data: Buffer.from(memo, 'utf8') }),
       multisig.instructions.spendingLimitUse({
         multisigPda: new PublicKey(MULTISIG_ADDRESS),
         member: agent.publicKey,
@@ -68,13 +69,22 @@ export async function payAsAgent(params: PayParams): Promise<PayResult> {
         decimals: cachedDecimals,
         destination: new PublicKey(params.to),
         memo,
-      }),
-      // SPL Memo so the tag shows up in getSignaturesForAddress / explorers
-      new TransactionInstruction({ programId: MEMO_PROGRAM_ID, keys: [], data: Buffer.from(memo, 'utf8') })
+      })
     );
 
-    const signature = await sendAndConfirmTransaction(connection, tx, [agent], { commitment: 'confirmed' });
-    return { ok: true, signature };
+    // skipPreflight so over-limit attempts land on-chain as failed txs: Squads rejects them
+    // on-chain and the dashboard can show them as blocked events.
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+    tx.recentBlockhash = blockhash;
+    tx.feePayer = agent.publicKey;
+    tx.sign(agent);
+    const signature = await connection.sendRawTransaction(tx.serialize(), { skipPreflight: true });
+    const { value } = await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
+    if (!value.err) return { ok: true, signature };
+
+    const custom = (value.err as any)?.InstructionError?.[1]?.Custom;
+    const detail = `tx ${signature} failed: ${JSON.stringify(value.err)}`;
+    return { ok: false, reason: custom === SPENDING_LIMIT_EXCEEDED_CODE ? 'LIMIT_EXCEEDED' : 'ERROR', detail };
   } catch (err: any) {
     const detail = [err?.message, ...(err?.logs ?? [])].join('\n');
     const limitHit =
