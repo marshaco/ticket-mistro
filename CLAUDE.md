@@ -45,7 +45,9 @@ cd dashboard && npm run dev       # terminal 2 → http://localhost:3000 (top ba
 npm run agent                     # terminal 3, run repeatedly; rows appear within ~5s
 npx tsx scripts/reset-limit.ts    # owner only: refill the agent to 100/100 before the demo
 ```
-To show a rejection instantly, ask the agent for company financials (150 tokens, over the 100/day limit): Squads rejects it on-chain and it shows as a red BLOCKED row. Repeated smaller purchases hit the limit too.
+The agent's question is hard-coded in `agent/index.ts` (the `role: "user"` message; default: Dublin weather). Edit it to change what the agent buys, e.g. "Get Apple's latest annual financials" or "What's AAPL trading at?".
+
+To show a rejection instantly, ask for company financials (150 tokens, over the 100/day limit): Squads rejects it on-chain and it shows as a red BLOCKED row. Repeated smaller purchases hit the limit too.
 
 ## Priorities
 
@@ -135,6 +137,7 @@ The dashboard needs only the addresses and `RPC_URL` (no keypairs). Only the own
 - Changing spending limits is a Squads config change by the owner. Do it in `/scripts`, not at runtime.
 - Wait for `confirmed` commitment before treating a payment as done. Verify on the API side too.
 - Poll the RPC every few seconds, not continuously.
+- Payments with a task starting `admin-test` are wallet tests; the dashboards hide them (once branch `fix/hide-test-payments` is merged).
 
 ## Out of scope today (roadmap slide only)
 
