@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8fa">
+  <title>AgentCard | Treasury</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f7f8fa;
+      --card: #fff;
+      --border: #e6e8ec;
+      --text: #0f172a;
+      --secondary: #64748b;
+      --muted: #94a3b8;
+      --accent: #4f46e5;
+      --accent-soft: #eef2ff;
+      --green: #15803d;
+      --green-bg: #dcfce7;
+      --red: #b91c1c;
+      --red-bg: #fee2e2;
+      --amber: #b45309;
+      --amber-bg: #fef3c7;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .05);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--page); color: var(--text); font-size: 13px; }
+    button { font: inherit; }
+    .shell { width: min(1200px, calc(100% - 48px)); margin: 0 auto; }
+    .topbar { min-height: 76px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.88); }
+    .topbar-inner { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand-wrap, .brand, .header-right, .vault-line, .live-meta, .kpi-title, .section-heading, .status-pill, .task-row, .copy-button { display: flex; align-items: center; }
+    .brand-wrap { gap: 14px; }
+    .brand { gap: 10px; color: var(--text); font-size: 16px; font-weight: 650; letter-spacing: -.2px; }
+    .brand-mark { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 7px; background: var(--accent); color: white; font-size: 14px; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+    .network-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; background: #f8fafc; color: #475569; font-size: 11px; font-weight: 500; }
+    .network-mark { width: 6px; height: 6px; border-radius: 50%; background: #7c83ea; }
+    .header-right { gap: 19px; }
+    .vault-meta { min-width: 0; }
+    .vault-caption { margin-bottom: 4px; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: .7px; text-transform: uppercase; }
+    .vault-line { gap: 6px; }
+    .vault-address { color: #334155; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; font-variant-numeric: tabular-nums; }
+    .copy-button { width: 23px; height: 23px; justify-content: center; border: 0; border-radius: 5px; background: transparent; color: #64748b; cursor: pointer; }
+    .copy-button:hover { background: #eef2f7; color: var(--accent); }
+    .copy-button svg { width: 14px; height: 14px; }
+    .live-meta { gap: 7px; color: #475569; font-size: 11px; white-space: nowrap; }
+    .live-dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+    .live-dot::after { position: absolute; inset: -3px; border: 1px solid rgba(34,197,94,.4); border-radius: 50%; animation: live-pulse 2s ease-out infinite; content: ""; }
+    .updated { color: var(--muted); }
+    main { padding: 31px 0 22px; }
+    .page-title-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+    h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -.5px; }
+    .page-subtitle { margin: 6px 0 0; color: var(--secondary); font-size: 12px; }
+    .window-label { color: var(--secondary); font-size: 11px; }
+    .error-banner { display: flex; align-items: center; gap: 9px; margin-bottom: 15px; padding: 10px 12px; border: 1px solid #fed7aa; border-radius: 8px; background: #fff7ed; color: #9a3412; font-size: 11px; }
+    .error-banner[hidden] { display: none; }
+    .error-icon { display: grid; width: 17px; height: 17px; flex: none; place-items: center; border: 1px solid currentColor; border-radius: 50%; font-size: 10px; font-weight: 700; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .card { border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: var(--shadow); }
+    .kpi-card { min-height: 132px; padding: 17px 18px 15px; }
+    .kpi-title { justify-content: space-between; color: var(--secondary); font-size: 11px; font-weight: 500; }
+    .kpi-icon { display: grid; width: 25px; height: 25px; place-items: center; border: 1px solid #edf0f4; border-radius: 7px; background: #fafbfc; color: #64748b; }
+    .kpi-icon svg { width: 14px; height: 14px; }
+    .kpi-value { margin-top: 12px; color: var(--text); font-size: 25px; font-weight: 650; letter-spacing: -.7px; font-variant-numeric: tabular-nums; line-height: 1; }
+    .kpi-value.blocked-value { color: var(--red); }
+    .kpi-value .budget-denom { color: #94a3b8; font-size: 14px; font-weight: 500; letter-spacing: 0; }
+    .kpi-foot { margin-top: 10px; color: var(--muted); font-size: 10px; }
+    .progress-track { height: 4px; overflow: hidden; margin-top: 12px; border-radius: 4px; background: #edf0f5; }
+    .progress-bar { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width .35s ease, background .2s ease; }
+    .progress-bar.warning { background: #f59e0b; }
+    .progress-bar.reached { background: #dc2626; }
+    .main-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); align-items: start; gap: 16px; margin-top: 17px; }
+    .activity-card { overflow: hidden; min-width: 0; }
+    .section-heading { min-height: 61px; justify-content: space-between; gap: 12px; padding: 0 17px; border-bottom: 1px solid #eef0f3; }
+    .section-heading h2 { margin: 0; font-size: 13px; font-weight: 600; }
+    .section-subtitle { margin-left: 8px; color: var(--muted); font-size: 10px; font-weight: 400; }
+    .count-pill { display: inline-grid; min-width: 23px; height: 21px; place-items: center; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px; color: #64748b; font-size: 10px; font-variant-numeric: tabular-nums; }
+    .table-scroll { width: 100%; overflow-x: auto; }
+    table { width: 100%; min-width: 790px; border-collapse: collapse; text-align: left; }
+    th { height: 37px; padding: 0 12px; background: #fbfcfd; color: #94a3b8; font-size: 9px; font-weight: 600; letter-spacing: .45px; text-transform: uppercase; white-space: nowrap; }
+    th:first-child, td:first-child { padding-left: 17px; }
+    td { height: 54px; padding: 0 12px; border-top: 1px solid #f0f2f5; color: #334155; font-size: 10px; white-space: nowrap; }
+    tbody tr { transition: background .25s ease; }
+    tbody tr:hover { background: #fafbff; }
+    tbody tr.blocked-row { background: #fffafa; }
+    tbody tr.blocked-row td:first-child { border-left: 3px solid #ef4444; padding-left: 14px; }
+    tbody tr.new-row { animation: row-arrival 2s ease-out; }
+    .time-cell { color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; font-variant-numeric: tabular-nums; }
+    .agent-name { color: #1e293b; font-size: 10px; font-weight: 500; }
+    .agent-address { display: block; margin-top: 3px; color: #94a3b8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
+    .task-name { display: inline-block; max-width: 175px; overflow: hidden; color: #334155; text-overflow: ellipsis; vertical-align: bottom; }
+    .request-id { color: #94a3b8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
+    .amount-cell { text-align: right; color: #0f172a; font-variant-numeric: tabular-nums; font-weight: 550; }
+    .status-pill { width: fit-content; gap: 5px; padding: 4px 7px; border-radius: 999px; font-size: 9px; font-weight: 550; }
+    .status-pill.paid { background: var(--green-bg); color: var(--green); }
+    .status-pill.blocked { background: var(--red-bg); color: var(--red); }
+    .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .explorer-link { display: inline-grid; width: 22px; height: 22px; place-items: center; border: 1px solid #e9ecf2; border-radius: 6px; color: #64748b; font-size: 13px; transition: color .15s ease, border-color .15s ease; }
+    .explorer-link:hover { border-color: #c7d2fe; color: var(--accent); }
+    .empty-state { padding: 54px 20px; color: var(--secondary); text-align: center; }
+    .empty-symbol { display: grid; width: 38px; height: 38px; place-items: center; margin: 0 auto 12px; border: 1px solid var(--border); border-radius: 12px; background: #fafbfc; color: #94a3b8; font-size: 18px; }
+    .empty-title { color: #334155; font-size: 12px; font-weight: 550; }
+    .empty-copy { margin-top: 5px; color: var(--muted); font-size: 10px; }
+    .table-foot { min-height: 39px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-top: 1px solid #eef0f3; color: #94a3b8; font-size: 9px; }
+    .table-foot strong { color: #64748b; font-weight: 500; }
+    .side-stack { display: grid; gap: 15px; }
+    .agent-card { position: relative; min-height: 193px; overflow: hidden; padding: 17px 18px; border: 0; background: linear-gradient(128deg, #4f46e5 0%, #5b4ce0 53%, #7851d8 100%); color: #fff; box-shadow: 0 9px 22px rgba(79,70,229,.16); }
+    .agent-card::before { position: absolute; top: -54px; right: -38px; width: 180px; height: 180px; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; content: ""; }
+    .agent-card::after { position: absolute; top: -25px; right: -10px; width: 130px; height: 130px; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; content: ""; }
+    .agent-card-top, .agent-card-bottom { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+    .agent-card-brand { font-size: 12px; font-weight: 600; letter-spacing: .05px; }
+    .card-chip { width: 24px; height: 17px; border: 1px solid rgba(255,255,255,.6); border-radius: 4px; background: linear-gradient(135deg, rgba(255,255,255,.25), rgba(255,255,255,.08)); }
+    .agent-card-label { margin-top: 25px; color: rgba(255,255,255,.67); font-size: 8px; font-weight: 600; letter-spacing: .9px; text-transform: uppercase; }
+    .agent-card-name { margin-top: 5px; font-size: 15px; font-weight: 550; }
+    .agent-card-address { margin-top: 4px; color: rgba(255,255,255,.7); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; }
+    .agent-card-bottom { margin-top: 17px; padding-top: 11px; border-top: 1px solid rgba(255,255,255,.2); }
+    .agent-limit-label { color: rgba(255,255,255,.68); font-size: 8px; }
+    .agent-limit { margin-top: 3px; font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; }
+    .agent-state { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border: 1px solid rgba(255,255,255,.23); border-radius: 999px; background: rgba(255,255,255,.1); font-size: 8px; }
+    .agent-state-dot { width: 5px; height: 5px; border-radius: 50%; background: #86efac; }
+    .task-card { min-height: 202px; padding-bottom: 7px; }
+    .task-card .section-heading { min-height: 52px; padding: 0 15px; }
+    .task-list { padding: 2px 15px 9px; }
+    .task-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 10px; padding: 11px 0; border-bottom: 1px solid #f0f2f5; }
+    .task-row:last-child { border-bottom: 0; }
+    .task-row-name { overflow: hidden; color: #475569; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+    .task-row-total { color: #1e293b; font-size: 10px; font-variant-numeric: tabular-nums; font-weight: 550; }
+    .task-bar-track { grid-column: 1 / -1; height: 4px; overflow: hidden; border-radius: 4px; background: #eef0f5; }
+    .task-bar { height: 100%; border-radius: inherit; background: var(--accent); }
+    .task-empty { padding: 28px 0; color: var(--muted); font-size: 10px; text-align: center; }
+    footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 20px; padding: 15px 1px 0; border-top: 1px solid #e9ecf0; color: #94a3b8; font-size: 9px; }
+    footer span:last-child { color: #64748b; }
+    @keyframes live-pulse { 0% { transform: scale(.75); opacity: .8; } 100% { transform: scale(1.8); opacity: 0; } }
+    @keyframes row-arrival { 0%, 72% { background: #eef2ff; } 100% { background: transparent; } }
+    @media (max-width: 960px) {
+      .shell { width: min(100% - 36px, 760px); }
+      .main-grid { grid-template-columns: 1fr; }
+      .side-stack { grid-template-columns: 1fr 1fr; align-items: stretch; }
+      .agent-card, .task-card { min-height: 202px; }
+    }
+    @media (max-width: 620px) {
+      .shell { width: calc(100% - 28px); }
+      .topbar, .topbar-inner { min-height: 65px; }
+      .header-right { gap: 11px; }
+      .vault-meta { display: none; }
+      .live-meta { gap: 6px; font-size: 10px; }
+      main { padding-top: 24px; }
+      .page-title-row { align-items: flex-start; }
+      h1 { font-size: 20px; }
+      .window-label { padding-top: 4px; font-size: 9px; white-space: nowrap; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .kpi-card { min-height: 122px; padding: 14px 13px 13px; }
+      .kpi-value { font-size: 22px; }
+      .kpi-value .budget-denom { font-size: 11px; }
+      .kpi-title { font-size: 10px; }
+      .kpi-icon { width: 22px; height: 22px; }
+      .main-grid { gap: 12px; margin-top: 12px; }
+      .side-stack { grid-template-columns: 1fr; gap: 12px; }
+      .section-heading { min-height: 55px; padding: 0 13px; }
+      .section-subtitle { display: none; }
+      .table-foot { padding: 0 12px; }
+      footer { flex-direction: column; gap: 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <div class="brand-wrap">
+        <div class="brand"><span class="brand-mark">A</span><span>AgentCard</span></div>
+        <span class="network-pill"><span class="network-mark"></span>Devnet</span>
+      </div>
+      <div class="header-right">
+        <div class="vault-meta">
+          <div class="vault-caption">Vault address</div>
+          <div class="vault-line">
+            <span class="vault-address" id="vaultAddress">Connecting…</span>
+            <button class="copy-button" id="copyVault" title="Copy vault address" aria-label="Copy vault address" type="button">
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M12.5 6V4.5A1.5 1.5 0 0 0 11 3H5.5A1.5 1.5 0 0 0 4 4.5v8A1.5 1.5 0 0 0 5.5 14H7" stroke="currentColor" stroke-width="1.4"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="live-meta"><span class="live-dot"></span><span>Live</span><span class="updated" id="updated">Waiting for data</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <div class="page-title-row">
+      <div><h1>Treasury overview</h1><p class="page-subtitle">Agent payments and daily spending limits</p></div>
+      <div class="window-label">Rolling 24 hours</div>
+    </div>
+
+    <div class="error-banner" id="errorBanner" role="status" aria-live="polite" hidden>
+      <span class="error-icon">!</span><span id="errorText">Live devnet data is temporarily unavailable. Showing the last successful update.</span>
+    </div>
+
+    <section class="kpi-grid" aria-label="Spending summary">
+      <article class="card kpi-card">
+        <div class="kpi-title"><span>Spent today</span><span class="kpi-icon"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v14M13.5 6.3c-.4-.8-1.4-1.3-3-1.3-1.8 0-3 .8-3 2.1 0 3.4 6 1.1 6 4.5 0 1.5-1.3 2.4-3.2 2.4-1.7 0-2.9-.6-3.5-1.7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></div>
+        <div class="kpi-value" id="spentToday">$—</div><div class="kpi-foot" id="vaultBalance">Vault balance · —</div>
+      </article>
+      <article class="card kpi-card">
+        <div class="kpi-title"><span>Budget left today</span><span class="kpi-icon"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="6.6" stroke="currentColor" stroke-width="1.4"/><path d="M10 6v4l2.7 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span></div>
+        <div class="kpi-value" id="budgetValue">$— <span class="budget-denom">/ $—</span></div>
+        <div class="progress-track"><div class="progress-bar" id="budgetBar"></div></div>
+        <div class="kpi-foot" id="budgetCaption">Daily spending limit</div>
+      </article>
+      <article class="card kpi-card">
+        <div class="kpi-title"><span>Payments</span><span class="kpi-icon"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 5.5h12M4 10h12M4 14.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="15.5" cy="14.5" r="1" fill="currentColor"/></svg></span></div>
+        <div class="kpi-value" id="paidCount">—</div><div class="kpi-foot">Confirmed in the last 24 hours</div>
+      </article>
+      <article class="card kpi-card">
+        <div class="kpi-title"><span>Blocked</span><span class="kpi-icon"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3.5 17 16H3L10 3.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 8v3.6M10 13.7v.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span></div>
+        <div class="kpi-value" id="blockedCount">—</div><div class="kpi-foot">Rejected by Squads spending limit</div>
+      </article>
+    </section>
+
+    <section class="main-grid" aria-label="Payment activity and agent budget">
+      <article class="card activity-card">
+        <div class="section-heading"><div><h2>Activity <span class="section-subtitle">Latest vault transactions</span></h2></div><span class="count-pill" id="activityCount">0</span></div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Time</th><th>Agent</th><th>Task</th><th>Request</th><th style="text-align:right">Amount</th><th>Status</th><th aria-label="Explorer"></th></tr></thead>
+            <tbody id="paymentsBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyState" hidden><div class="empty-symbol">↗</div><div class="empty-title">No agent payments yet</div><div class="empty-copy">Payments from the vault will appear here as they settle.</div></div>
+        </div>
+        <div class="table-foot"><span>On-chain payment history</span><strong id="tableSummary">Awaiting devnet data</strong></div>
+      </article>
+
+      <aside class="side-stack">
+        <article class="card agent-card" aria-label="Agent spending card">
+          <div class="agent-card-top"><div class="agent-card-brand">AgentCard</div><div class="card-chip" aria-hidden="true"></div></div>
+          <div class="agent-card-label">Assigned agent</div>
+          <div class="agent-card-name">Research agent</div>
+          <div class="agent-card-address" id="agentAddress">Waiting for first payment</div>
+          <div class="agent-card-bottom"><div><div class="agent-limit-label">Daily spending limit</div><div class="agent-limit" id="agentLimit">$— / day</div></div><span class="agent-state" id="agentState"><span class="agent-state-dot"></span>Active</span></div>
+        </article>
+        <article class="card task-card">
+          <div class="section-heading"><div><h2>Spend by task</h2></div><span class="section-subtitle">Today</span></div>
+          <div class="task-list" id="taskList"><div class="task-empty">No task spend yet</div></div>
+        </article>
+      </aside>
+    </section>
+
+    <footer><span>Spending limits enforced on-chain by Squads v4 · 1 token = $1 test stablecoin</span><span>Solana devnet</span></footer>
+  </main>
+
+  <script>
+    const byId = (id) => document.getElementById(id);
+    const money = (amount) => `$${Number(amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const shortAddress = (address) => address && address.length > 10 ? `${address.slice(0, 4)}…${address.slice(-4)}` : (address || "Unknown");
+    const shortRequest = (requestId) => requestId ? (requestId.length > 12 ? `${requestId.slice(0, 8)}…` : requestId) : "—";
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+    let lastSummary = null;
+    let updatedAt = 0;
+    let hadFirstResponse = false;
+    let latestVault = "";
+
+    function render(summary) {
+      const previousSignatures = new Set((lastSummary?.payments || []).map((payment) => payment.signature));
+      const spent = Number(summary.spentToday || 0);
+      const limit = Number(summary.limit?.amount || 0);
+      const remaining = Number(summary.limit?.remaining || 0);
+      const progress = limit > 0 ? Math.min(100, Math.max(0, ((limit - remaining) / limit) * 100)) : 0;
+      const bar = byId("budgetBar");
+      bar.style.width = `${progress}%`;
+      bar.className = `progress-bar${remaining <= 0 && limit > 0 ? " reached" : remaining / (limit || 1) < .3 ? " warning" : ""}`;
+      byId("spentToday").textContent = money(spent);
+      byId("budgetValue").innerHTML = `${money(remaining)} <span class="budget-denom">/ ${money(limit)}</span>`;
+      byId("budgetCaption").textContent = remaining <= 0 && limit > 0 ? "Limit reached" : `${Math.round(progress)}% of daily budget used`;
+      byId("paidCount").textContent = Number(summary.paidCount || 0).toLocaleString("en-US");
+      byId("blockedCount").textContent = Number(summary.blockedCount || 0).toLocaleString("en-US");
+      byId("blockedCount").classList.toggle("blocked-value", Number(summary.blockedCount || 0) > 0);
+      byId("vaultBalance").textContent = `Vault balance · ${money(summary.vaultBalance)}`;
+      byId("agentLimit").textContent = `${money(limit)} / day`;
+      const state = byId("agentState");
+      state.innerHTML = remaining <= 0 && limit > 0 ? "<span class=\"agent-state-dot\" style=\"background:#fca5a5\"></span>Limit reached" : "<span class=\"agent-state-dot\"></span>Active";
+
+      latestVault = summary.vault || "";
+      byId("vaultAddress").textContent = shortAddress(latestVault) || "Unavailable";
+      byId("copyVault").disabled = !latestVault;
+      const newestAgent = summary.payments?.[0]?.agent;
+      byId("agentAddress").textContent = newestAgent && newestAgent !== "Unknown" ? shortAddress(newestAgent) : "Waiting for first payment";
+
+      const payments = summary.payments || [];
+      byId("activityCount").textContent = payments.length.toString().padStart(2, "0");
+      byId("tableSummary").textContent = `${payments.length} transaction${payments.length === 1 ? "" : "s"} · newest first`;
+      byId("emptyState").hidden = payments.length > 0;
+      byId("paymentsBody").innerHTML = payments.map((payment) => {
+        const isBlocked = payment.status === "Blocked";
+        const time = payment.time ? new Date(payment.time * 1000).toLocaleTimeString("en-GB", { hour12: false }) : "—";
+        const status = isBlocked ? "Blocked" : "Paid";
+        const fresh = hadFirstResponse && !previousSignatures.has(payment.signature);
+        const signature = encodeURIComponent(payment.signature);
+        return `<tr class="${isBlocked ? "blocked-row" : ""}${fresh ? " new-row" : ""}">
+          <td class="time-cell">${time}</td>
+          <td><span class="agent-name">Research agent</span><span class="agent-address">${escapeHtml(shortAddress(payment.agent))}</span></td>
+          <td><span class="task-name" title="${escapeHtml(payment.taskId)}">${escapeHtml(payment.taskId || "—")}</span></td>
+          <td><span class="request-id" title="${escapeHtml(payment.requestId)}">${escapeHtml(shortRequest(payment.requestId))}</span></td>
+          <td class="amount-cell">${money(payment.amount)}</td>
+          <td><span class="status-pill ${isBlocked ? "blocked" : "paid"}"><span class="status-dot"></span>${status}</span></td>
+          <td><a class="explorer-link" href="https://explorer.solana.com/tx/${signature}?cluster=devnet" target="_blank" rel="noreferrer" aria-label="View transaction in Solana Explorer">↗</a></td>
+        </tr>`;
+      }).join("");
+
+      const tasks = summary.byTask || [];
+      const maxTaskSpend = Math.max(1, ...tasks.map((task) => Number(task.total)));
+      byId("taskList").innerHTML = tasks.length ? tasks.map((task) => `
+        <div class="task-row"><span class="task-row-name" title="${escapeHtml(task.taskId)}">${escapeHtml(task.taskId)}</span><span class="task-row-total">${money(task.total)}</span>
+        <div class="task-bar-track"><div class="task-bar" style="width:${Math.max(4, Number(task.total) / maxTaskSpend * 100)}%"></div></div></div>`).join("") : "<div class=\"task-empty\">No task spend yet</div>";
+
+      lastSummary = summary;
+      updatedAt = Date.now();
+      hadFirstResponse = true;
+      byId("errorBanner").hidden = true;
+      updateRelativeTime();
+    }
+
+    function updateRelativeTime() {
+      if (!updatedAt) return;
+      const seconds = Math.max(0, Math.floor((Date.now() - updatedAt) / 1000));
+      byId("updated").textContent = seconds < 2 ? "Updated just now" : `Updated ${seconds}s ago`;
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/api/summary", { cache: "no-store" });
+        if (!response.ok) throw new Error("API unavailable");
+        render(await response.json());
+      } catch {
+        byId("errorBanner").hidden = false;
+        if (!lastSummary) byId("errorText").textContent = "Waiting for devnet data. Check that the dashboard environment is configured.";
+      }
+    }
+
+    byId("copyVault").addEventListener("click", async () => {
+      if (!latestVault) return;
+      try {
+        await navigator.clipboard.writeText(latestVault);
+        byId("copyVault").title = "Copied";
+        setTimeout(() => { byId("copyVault").title = "Copy vault address"; }, 1200);
+      } catch { /* Clipboard access can be unavailable outside secure contexts. */ }
+    });
+
+    refresh();
+    setInterval(refresh, 5_000);
+    setInterval(updateRelativeTime, 1_000);
+  </script>
+</body>
+</html>
