@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { Summary } from "./api/summary/route";
+
 type Payment = {
   time: string;
   sortKey: number;
@@ -5,6 +10,7 @@ type Payment = {
   agent: string;
   memo: string;
   signature: string;
+  status?: "paid" | "blocked";
 };
 
 const dailyLimit = 150;
@@ -97,12 +103,71 @@ function shortAddress(address: string) {
   return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
 
+function formatClock(unixSeconds: number) {
+  return new Date(unixSeconds * 1000).toLocaleTimeString("en-GB", { hour12: false });
+}
+
+function formatCountdown(seconds: number) {
+  const s = Math.max(0, seconds);
+  return `${String(Math.floor(s / 3600)).padStart(2, "0")}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
+}
+
+const POLL_MS = 5000;
+
 export default function Home() {
-  const payments = [...mockPayments].sort((a, b) => b.sortKey - a.sortKey);
-  const spentToday = payments.reduce((total, payment) => total + payment.amount, 0);
-  const remaining = dailyLimit - spentToday;
-  const progress = Math.min((spentToday / dailyLimit) * 100, 100);
+  const [live, setLive] = useState<Summary | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    let stop = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/summary", { cache: "no-store" });
+        const body = await res.json();
+        if (stop) return;
+        if (!res.ok) throw new Error(body.error ?? res.statusText);
+        setLive(body);
+        setLiveError(null);
+      } catch (e) {
+        if (!stop) setLiveError(e instanceof Error ? e.message : String(e));
+      }
+      if (!stop) setNow(Date.now());
+    };
+    load();
+    const id = setInterval(load, POLL_MS);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  const isLive = live !== null;
+  const frozen = isLive && "frozen" in live.limit;
+  const payments: Payment[] = isLive
+    ? live.payments.map((p) => ({
+        time: formatClock(p.blockTime),
+        sortKey: p.blockTime,
+        amount: p.amount,
+        agent: p.agent,
+        memo: p.memo,
+        signature: p.signature,
+        status: p.status,
+      }))
+    : [...mockPayments].sort((a, b) => b.sortKey - a.sortKey);
+  const limitAmount = isLive && !("frozen" in live.limit) ? live.limit.amount : isLive ? 0 : dailyLimit;
+  const remaining = isLive
+    ? "frozen" in live.limit ? 0 : live.limit.remaining
+    : dailyLimit - payments.reduce((total, payment) => total + payment.amount, 0);
+  const spentToday = limitAmount - remaining;
+  const resetsIn = isLive && !("frozen" in live.limit) ? formatCountdown(live.limit.resetsAt - Math.floor(now / 1000)) : "09h 24m";
+  const progress = limitAmount > 0 ? Math.min((spentToday / limitAmount) * 100, 100) : 100;
   const progressState = progress >= 100 ? "over" : progress >= 80 ? "warning" : "healthy";
+  const paidCount = payments.filter((p) => p.status !== "blocked").length;
+  const blockedCount = payments.filter((p) => p.status === "blocked").length;
+  const latestBlocked = payments.find((p) => p.status === "blocked");
+  const vaultShort = isLive ? shortAddress(live.vault) : "8rT2...vA7k";
+  const updatedAgo = isLive ? Math.max(0, Math.round((now - live.updatedAt) / 1000)) : null;
 
   return (
     <main className="app-shell">
@@ -121,13 +186,13 @@ export default function Home() {
           <a className="nav-item" href="#payments">
             <span className="nav-glyph list-glyph" aria-hidden="true" />
             Payments
-            <span className="nav-count">09</span>
+            <span className="nav-count">{String(payments.length).padStart(2, "0")}</span>
           </a>
         </nav>
 
         <div className="sidebar-bottom">
           <div className="vault-label">ACTIVE VAULT</div>
-          <div className="vault-address"><span className="status-dot" />8rT2...vA7k</div>
+          <div className="vault-address"><span className="status-dot" />{vaultShort}</div>
           <div className="sidebar-network">Solana Devnet</div>
         </div>
       </aside>
@@ -136,7 +201,7 @@ export default function Home() {
         <header className="topbar">
           <div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span>Overview</div>
           <div className="topbar-right">
-            <span className="mode-pill"><span className="mode-dot" /> MOCK DATA</span>
+            <span className="mode-pill"><span className="mode-dot" /> {isLive ? "LIVE DATA" : "MOCK DATA"}</span>
             <span className="network-pill"><span className="network-mark">S</span> DEVNET</span>
             <span className="avatar" aria-label="AgentCard workspace">AC</span>
           </div>
@@ -156,41 +221,41 @@ export default function Home() {
             <article className="budget-panel">
               <div className="panel-topline">
                 <div className="section-label"><span className="label-mark budget-mark" /> DAILY SPENDING LIMIT</div>
-                <span className="budget-period">Resets in <b>09h 24m</b></span>
+                <span className="budget-period">{frozen ? <b>CARD FROZEN</b> : <>Resets in <b>{resetsIn}</b></>}</span>
               </div>
               <div className="budget-numbers">
                 <div>
-                  <div className="big-amount">${formatAmount(spentToday)}<span> <small>/ ${formatAmount(dailyLimit)}</small></span></div>
-                  <div className="spent-caption">SPENT TODAY <span className="spent-change">+12.5% vs yesterday</span></div>
+                  <div className="big-amount">${formatAmount(spentToday)}<span> <small>/ ${formatAmount(limitAmount)}</small></span></div>
+                  <div className="spent-caption">SPENT TODAY {isLive ? <span className="spent-change">{paidCount} paid · {blockedCount} blocked</span> : <span className="spent-change">+12.5% vs yesterday</span>}</div>
                 </div>
                 <div className="remaining-block">
                   <div className="remaining-amount">${formatAmount(remaining)}</div>
                   <div className="remaining-caption">REMAINING</div>
                 </div>
               </div>
-              <div className="budget-meter" role="progressbar" aria-label="Daily budget used" aria-valuemin={0} aria-valuemax={dailyLimit} aria-valuenow={spentToday}>
+              <div className="budget-meter" role="progressbar" aria-label="Daily budget used" aria-valuemin={0} aria-valuemax={limitAmount} aria-valuenow={spentToday}>
                 <div className={`budget-meter-fill ${progressState}`} style={{ width: `${progress}%` }} />
                 <span className="meter-marker" style={{ left: "80%" }} />
               </div>
-              <div className="meter-foot"><span>$0</span><span className="meter-warning-label">80% · limit approaching</span><span>${formatAmount(dailyLimit)}</span></div>
+              <div className="meter-foot"><span>$0</span><span className="meter-warning-label">80% · limit approaching</span><span>${formatAmount(limitAmount)}</span></div>
             </article>
 
             <article className="blocked-panel" aria-labelledby="blocked-title">
               <div className="blocked-topline">
                 <span className="blocked-symbol" aria-hidden="true">!</span>
                 <span className="blocked-kicker">SQUADS POLICY EVENT</span>
-                <span className="blocked-time">14:41:06</span>
+                <span className="blocked-time">{isLive ? latestBlocked?.time ?? "—" : "14:41:06"}</span>
               </div>
               <div className="blocked-content">
                 <div>
-                  <h2 id="blocked-title">Blocked at the limit</h2>
+                  <h2 id="blocked-title">{isLive && !latestBlocked ? "No blocked payments" : "Blocked at the limit"}</h2>
                   <p>Spending limit enforced by Squads on-chain</p>
                 </div>
-                <div className="blocked-amount">−$35.00</div>
+                <div className="blocked-amount">{isLive ? (latestBlocked ? `−$${formatAmount(latestBlocked.amount)}` : "—") : "−$35.00"}</div>
               </div>
               <div className="blocked-footer">
-                <span className="blocked-status"><span /> REJECTED · EXCEEDS DAILY LIMIT</span>
-                <span className="blocked-over">$12.40 over</span>
+                <span className="blocked-status"><span /> {isLive && !latestBlocked ? "ALL PAYMENTS WITHIN LIMIT" : "REJECTED ON-CHAIN · EXCEEDS DAILY LIMIT"}</span>
+                <span className="blocked-over">{isLive ? (latestBlocked ? `${parseTask(latestBlocked.memo)} · ${blockedCount} blocked total` : "") : "$12.40 over"}</span>
               </div>
             </article>
           </section>
@@ -199,9 +264,9 @@ export default function Home() {
             <div className="payments-heading">
               <div>
                 <div className="section-label"><span className="label-mark payments-mark" /> TRANSACTION LEDGER</div>
-                <h2 id="payments-title">Recent payments <span className="payment-count">09</span></h2>
+                <h2 id="payments-title">Recent payments <span className="payment-count">{String(payments.length).padStart(2, "0")}</span></h2>
               </div>
-              <div className="ledger-meta"><span className="ledger-live-dot" /> UPDATED JUST NOW <span className="ledger-divider" /> <span>DEVNET</span></div>
+              <div className="ledger-meta"><span className="ledger-live-dot" /> {updatedAgo === null ? "MOCK DATA" : updatedAgo < 2 ? "UPDATED JUST NOW" : `UPDATED ${updatedAgo}S AGO`}{liveError && isLive ? " · RECONNECTING" : ""} <span className="ledger-divider" /> <span>DEVNET</span></div>
             </div>
 
             <div className="table-frame">
@@ -218,9 +283,9 @@ export default function Home() {
                   </thead>
                   <tbody>
                     {payments.map((payment) => (
-                      <tr key={payment.signature}>
+                      <tr key={payment.signature} className={payment.status === "blocked" ? "row-blocked" : undefined}>
                         <td><span className="time-main">Today</span><span className="time-sub">{payment.time}</span></td>
-                        <td><span className="amount-main">${formatAmount(payment.amount)}</span><span className="token-name">TESTUSD</span></td>
+                        <td><span className="amount-main">${formatAmount(payment.amount)}</span><span className="token-name">TESTUSD</span>{payment.status === "blocked" && <span className="blocked-tag">BLOCKED</span>}</td>
                         <td><span className="agent-chip"><span className="agent-dot" />{shortAddress(payment.agent)}</span></td>
                         <td><span className="task-label">{parseTask(payment.memo)}</span></td>
                         <td className="explorer-cell"><a className="explorer-link" href={`https://explorer.solana.com/tx/${payment.signature}?cluster=devnet`} target="_blank" rel="noreferrer" aria-label={`Open ${payment.signature} in Solana Explorer`}>VIEW <span aria-hidden="true">↗</span></a></td>
@@ -229,7 +294,7 @@ export default function Home() {
                   </tbody>
                 </table>
               </div>
-              <div className="table-footer"><span><span className="footer-check">✓</span> All successful payments confirmed</span><span>SHOWING 9 OF 9</span></div>
+              <div className="table-footer"><span><span className="footer-check">✓</span> {isLive ? `${paidCount} confirmed on-chain · ${blockedCount} rejected by Squads` : "All successful payments confirmed"}</span><span>SHOWING {payments.length} OF {payments.length}</span></div>
             </div>
           </section>
 

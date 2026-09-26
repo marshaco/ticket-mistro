@@ -1,4 +1,4 @@
-import { payAsAgent } from "./stub-payment";
+import { payAsAgent } from "../wallet-service/index.js";
 
 export async function buyData(endpoint: string, taskId: string) {
   // 1. First call, no payment
@@ -7,7 +7,7 @@ export async function buyData(endpoint: string, taskId: string) {
   if (res.status === 402) {
     const { price, payTo, requestId } = await res.json();
 
-    // 2. Pay (fake for now)
+    // 2. Pay from the Squads vault via the agent's on-chain spending limit
     const payment = await payAsAgent({
       agentKeypairPath: process.env.AGENT_KEYPAIR_PATH!,
       to: payTo,
