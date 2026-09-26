@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Summary } from "./api/summary/route";
 
@@ -112,6 +113,45 @@ function formatCountdown(seconds: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
 }
 
+type TrackedView = { key: string; mode: "limit" | "target"; limit: number; target: number; expires?: string; used: number };
+
+function money(n: number) {
+  return `$${n.toFixed(n !== 0 && Math.abs(n) < 1 ? 4 : 2)}`;
+}
+
+// One tracked thing, read-only: shows whatever the customer configured on the Settings page.
+function TrackCard(props: { item: TrackedView; kicker: string; limitNote: string; footnote: string; now: number }) {
+  const { item, kicker, limitNote, footnote, now } = props;
+  const isLimit = item.mode === "limit";
+  const goal = isLimit ? item.limit : item.target;
+  const pct = goal > 0 ? Math.min((item.used / goal) * 100, 100) : 100;
+  const state = isLimit ? (pct >= 100 ? "over" : pct >= 80 ? "warning" : "healthy") : "target-fill";
+  const days = item.expires ? Math.max(0, Math.ceil((Date.parse(item.expires) - now) / 86_400_000)) : null;
+  const status = isLimit
+    ? pct >= 100 ? "LIMIT REACHED" : `${money(Math.max(0, goal - item.used))} left of ${money(goal)}`
+    : item.used >= goal ? "TARGET MET" : `${money(goal - item.used)} still to spend of ${money(goal)}`;
+
+  return (
+    <article className="budget-panel limit-card">
+      <div className="limit-card-top">
+        <div className="section-label">{kicker}</div>
+        <span className={`mode-chip ${isLimit ? "chip-limit" : "chip-target"}`}>{isLimit ? "HARD LIMIT" : "SPEND TARGET"}</span>
+      </div>
+      <div className="big-amount limit-used">{money(item.used)}<span> <small>{item.key === "purchases" ? "spent today" : "used"}</small></span></div>
+      <div className="limit-row">
+        <div className="limit-row-head">
+          <span>{isLimit ? limitNote : `Tracking only, never blocks${days !== null && item.key !== "purchases" ? ` · ${days} days left` : ""}`}</span>
+          <b className={isLimit ? "" : item.used >= goal ? "target-met" : "target-open"}>{status}</b>
+        </div>
+        <div className={`budget-meter ${isLimit ? "" : "target-meter"}`}>
+          <div className={`budget-meter-fill ${state}`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <div className="limit-foot">{footnote} · <Link href="/settings" className="edit-link">Edit in Settings →</Link></div>
+    </article>
+  );
+}
+
 const POLL_MS = 5000;
 
 export default function Home() {
@@ -167,6 +207,7 @@ export default function Home() {
   const blockedCount = payments.filter((p) => p.status === "blocked").length;
   const latestBlocked = payments.find((p) => p.status === "blocked");
   const vaultShort = isLive ? shortAddress(live.vault) : "8rT2...vA7k";
+  const credits = isLive ? live.credits : null;
   const updatedAgo = isLive ? Math.max(0, Math.round((now - live.updatedAt) / 1000)) : null;
 
   return (
@@ -188,6 +229,10 @@ export default function Home() {
             Payments
             <span className="nav-count">{String(payments.length).padStart(2, "0")}</span>
           </a>
+          <Link className="nav-item" href="/settings">
+            <span className="nav-glyph grid-glyph" aria-hidden="true" />
+            Settings
+          </Link>
         </nav>
 
         <div className="sidebar-bottom">
@@ -259,6 +304,60 @@ export default function Home() {
               </div>
             </article>
           </section>
+
+          {isLive && credits && (
+            <section className="limits-section" aria-labelledby="limits-title">
+              <div className="section-label"><span className="label-mark budget-mark" /> LIMITS &amp; TARGETS</div>
+              <h2 id="limits-title" className="limits-title">What you&apos;re tracking, as set in <Link href="/settings" className="edit-link">Settings</Link>: hard limits block spend, spend targets track how much is still to spend.</h2>
+              <div className="limits-grid">
+                <TrackCard
+                  key={`purchases-${live.purchases.mode}-${live.purchases.limit}-${live.purchases.target}`}
+                  item={live.purchases}
+                  kicker="AGENT PURCHASES · TODAY"
+                  limitNote="Hard limit · enforced on-chain by Squads"
+                  footnote={`${blockedCount} payment${blockedCount === 1 ? "" : "s"} rejected on-chain · on-chain safety limit $${live.purchases.limit}/day always applies`}
+                  now={now}
+                />
+                {credits.map((c) => (
+                  <TrackCard
+                    key={`${c.provider}-${c.mode}-${c.limit}-${c.target}-${c.expires}`}
+                    item={c}
+                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}${c.simulated ? " · SIMULATED" : ""}`}
+                    limitNote={`Hard limit · agents stop calling the model (grant $${c.grantUsd})`}
+                    footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
+                    now={now}
+                    />
+                ))}
+              </div>
+
+              <div className="table-frame task-frame">
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">TASK</th>
+                        <th scope="col">AGENT · AI PROVIDER</th>
+                        <th scope="col">PURCHASES (ON-CHAIN)</th>
+                        <th scope="col">BLOCKED</th>
+                        <th scope="col">AI COST</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {live.tasks.map((t) => (
+                        <tr key={t.taskId}>
+                          <td><span className="task-label">{t.taskId}</span></td>
+                          <td><span className="time-sub">{t.agents.length ? t.agents.join(", ") : "—"}</span></td>
+                          <td><span className="amount-main">${formatAmount(t.purchases)}</span></td>
+                          <td>{t.blocked > 0 ? <span className="blocked-tag">{t.blocked} BLOCKED</span> : <span className="time-sub">—</span>}</td>
+                          <td><span className="amount-main">{t.aiUsd > 0 ? `$${t.aiUsd.toFixed(4)}` : "—"}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="payments-section" id="payments" aria-labelledby="payments-title">
             <div className="payments-heading">

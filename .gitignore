@@ -4,3 +4,4 @@ dist/
 /keys/
 /.vscode/
 npm-debug.log
+data/

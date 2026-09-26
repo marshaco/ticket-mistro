@@ -236,3 +236,58 @@ tbody tr.row-blocked { background: #2a1b17; box-shadow: inset 3px 0 0 var(--red)
 tbody tr.row-blocked:hover { background: #33201b; }
 tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
 .blocked-tag { margin-left: 8px; padding: 2px 6px; border: 1px solid #c85f49; border-radius: 3px; color: #ff907b; font-family: Consolas, monospace; font-size: 8px; letter-spacing: .5px; }
+
+/* Limits & targets: hard limits (block) vs soft minimums (tracking only) */
+.limits-section { margin-top: 28px; }
+.limits-title { margin: 6px 0 14px; color: var(--muted, #9aa396); font-size: 13px; font-weight: 500; }
+.limits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.limit-card { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; }
+.limit-used { margin-top: 2px; }
+.limit-row-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; color: #9aa396; font-size: 10px; }
+.limit-row-head b { color: #e7ebdf; font-family: Consolas, monospace; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.limit-row-head b.target-met { color: #b8f26b; }
+.limit-row-head b.target-open { color: #f2c46b; }
+.target-meter .target-fill { background: #6b9cf2; }
+.limit-foot { color: #737d70; font-family: Consolas, monospace; font-size: 9px; letter-spacing: .4px; }
+.task-frame { margin-top: 14px; }
+@media (max-width: 900px) { .limits-grid { grid-template-columns: 1fr; } }
+
+/* Mode toggle + editable amount on tracked cards */
+.limit-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mode-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.mode-toggle button { padding: 5px 10px; border: 0; background: transparent; color: #9aa396; font: 600 10px/1 Consolas, monospace; letter-spacing: .3px; cursor: pointer; }
+.mode-toggle button.on { background: #b8f26b; color: #11150f; }
+.limit-edit { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: #9aa396; font-size: 11px; }
+.limit-edit label { display: inline-flex; align-items: center; gap: 6px; }
+.limit-edit input { width: 90px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: #141813; color: #e7ebdf; font: 12px Consolas, monospace; }
+.limit-edit input[type="date"] { width: 130px; }
+.save-btn { padding: 6px 12px; border: 1px solid #b8f26b; border-radius: 5px; background: transparent; color: #b8f26b; font: 600 10px Consolas, monospace; cursor: pointer; }
+.save-btn:disabled { border-color: var(--line); color: #5d665a; cursor: default; }
+.limit-msg { color: #9aa396; font: 10px Consolas, monospace; }
+
+/* Read-only mode chip on dashboard cards */
+.mode-chip { padding: 3px 8px; border-radius: 4px; font: 600 9px Consolas, monospace; letter-spacing: .5px; }
+.chip-limit { border: 1px solid #b8f26b55; color: #b8f26b; }
+.chip-target { border: 1px solid #6b9cf255; color: #8fb4f5; }
+.edit-link { color: #b8f26b; text-decoration: none; }
+.edit-link:hover { text-decoration: underline; }
+
+/* Settings page */
+.settings-list { display: grid; gap: 14px; margin-top: 8px; }
+.settings-row { display: grid; gap: 14px; padding: 20px 22px; min-height: 0; }
+.settings-head h2 { color: #e7ebdf; font-size: 16px; font-weight: 600; }
+.settings-head p { margin-top: 4px; color: #9aa396; font-size: 11px; }
+.settings-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.settings-option { display: flex; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+.settings-option.selected { border-color: #b8f26b88; background: #1b2118; }
+.settings-option input[type="radio"] { margin-top: 2px; accent-color: #b8f26b; }
+.settings-option b { display: block; color: #e7ebdf; font-size: 13px; }
+.settings-option span { display: block; margin-top: 4px; color: #9aa396; font-size: 11px; line-height: 1.45; }
+.settings-fields { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; color: #9aa396; font-size: 11px; }
+.settings-fields label { display: inline-flex; align-items: center; gap: 6px; }
+.settings-fields input { width: 100px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: #141813; color: #e7ebdf; font: 12px Consolas, monospace; }
+.settings-fields input[type="date"] { width: 135px; }
+.settings-actions { display: flex; align-items: center; gap: 12px; }
+.settings-error { color: #ff8a73; font-size: 12px; }
+.settings-loading { color: #9aa396; font-size: 12px; }
+@media (max-width: 900px) { .settings-options { grid-template-columns: 1fr; } }

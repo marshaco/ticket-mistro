@@ -17,6 +17,11 @@ Only claim what's under "Built and verified". Label everything else as planned.
 - **Claude agent** with a `buy_data` tool: gets a 402, pays from its allowance, retries with the transaction signature, uses the data. Tested end to end with a real Claude call.
 - **Live finance dashboard** (Next.js): polls devnet every 5s. Shows real payments (amount, agent, task, explorer link), blocked payments in red, and budget left today, read straight from the Squads spending-limit account.
 - **Owner tools:** one-shot setup script, and a limit reset that keeps the same limit address.
+- **AI usage tracking across providers (off-chain):** every Claude call the agent makes is logged with its real token cost per task and agent (`agent/credits.ts`). Any agent on any provider can report usage to `POST /api/usage` on the dashboard. `credits.config.json` sets each provider's credit grant, **hard cap** (the agent checks before each model call and stops at the cap; tested) and **soft minimum** before expiry (tracking only).
+- **Limits & targets on the dashboard:** agent purchases (hard limit on-chain + soft daily minimum) and one AI-credits card per provider (hard cap + soft minimum + days to expiry), plus a per-task table of on-chain purchases next to AI cost.
+- **Live questions:** `npm run agent -- "What's AAPL trading at?"`.
+- **Settings page (`/settings`) + read-only dashboard:** on Settings, the customer chooses for agent purchases and for each AI provider either a **Hard limit** (blocks spend) or a **Spend target** (tracking only: how much is still to spend, by a date), and sets the amount. The dashboard only reflects those choices (each card is labelled HARD LIMIT or SPEND TARGET). Saving a purchases hard limit **changes the Squads limit on-chain** (the dashboard server uses the owner key; in production this would be a Squads approval flow). Note: saving a new on-chain limit also restarts today's allowance. An on-chain safety limit always exists for purchases, even in target mode. AI hard limits are read by the agent before each model call. Settings live in `data/tracking-settings.json`.
+- **Honest caveats:** only the Anthropic numbers are real. OpenAI and Gemini usage on the dashboard comes from `scripts/simulate-other-agents.ts` and is labelled SIMULATED. The credit hard cap only stops agents that check with us before calling; enforcing it on any agent needs a proxy (roadmap). Credit tracking isn't on Solana; purchases are.
 
 ### Demo evidence (devnet explorer)
 - Paid by the Claude agent: https://explorer.solana.com/tx/gccafQctuqbMMwLPUeG48psdm4sELjr6YuosiEfjR4LpPDgxhihhnU1bTNWpr84PGqrdMGgsJuAEakh6Fp9rbHX?cluster=devnet
@@ -26,10 +31,8 @@ Only claim what's under "Built and verified". Label everything else as planned.
 ### Planned (not built, do not claim as done)
 | Feature | Enforced by Solana? | How |
 |---|---|---|
-| AI credit tracking (Anthropic/OpenAI) | No | Log each model call's token usage and cost off-chain; show used vs granted on the dashboard |
-| Credit hard cap | No | Our code stops the agent from making model calls past the cap (software check) |
-| Credit minimum-usage target | No | Dashboard pacing: used vs target before the credits expire |
-| Purchase minimum-spend target | No | A target line on the budget panel; nothing forces spending |
+| Real OpenAI/Gemini usage | No | Wrap those SDKs (or use provider admin usage APIs) to report to `/api/usage` |
+| Credit hard cap for any agent | No | A proxy all AI traffic goes through, so the cap is enforced without agent cooperation |
 | Verifiable AI-usage record | Partly | Optional on-chain memo per task summarising AI cost: an audit trail, not a control |
 
 **Pitch honesty:** the Solana part of the product is agent payments with on-chain limits and verifiable, task-tagged records. The credit tracker is the wider product around it and doesn't need a blockchain. Say so rather than overclaim. Open questions: which provider to show (only Anthropic can be real, since the agent runs on Claude), and the demo numbers (credit grant, expiry, cap, target).
@@ -42,8 +45,10 @@ From the repo root, with the shared `.env` and `keys/agent.json`:
 ```bash
 npm run paid-api                  # terminal 1 → http://localhost:3001
 cd dashboard && npm run dev       # terminal 2 → http://localhost:3000 (top bar must say LIVE DATA)
-npm run agent                     # terminal 3, run repeatedly; rows appear within ~5s
-npx tsx scripts/reset-limit.ts    # owner only: refill the agent to 100/100 before the demo
+npm run agent -- "What's AAPL trading at?"   # terminal 3; rows appear within ~5s
+npx tsx scripts/simulate-other-agents.ts     # once: labelled OpenAI/Gemini usage for the multi-provider view
+npm run demo:start                # owner only, right before the demo: refill the limit to 100/100 and
+                                  # clear the dashboard view (history stays on-chain; `-- --all` shows it again)
 ```
 The agent's question is hard-coded in `agent/index.ts` (the `role: "user"` message; default: Dublin weather). Edit it to change what the agent buys, e.g. "Get Apple's latest annual financials" or "What's AAPL trading at?".
 

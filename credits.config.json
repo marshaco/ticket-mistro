@@ -1,0 +1,8 @@
+{
+  "_note": "Demo credit grants per AI provider. hardCapUsd blocks agents that check before calling; minTargetUsd is a soft minimum (tracking only).",
+  "providers": {
+    "Anthropic": { "grantUsd": 10, "hardCapUsd": 8, "minTargetUsd": 5, "expires": "2026-12-31" },
+    "OpenAI": { "grantUsd": 25, "hardCapUsd": 20, "minTargetUsd": 10, "expires": "2026-11-30" },
+    "Google Gemini": { "grantUsd": 15, "hardCapUsd": 12, "minTargetUsd": 6, "expires": "2027-01-31" }
+  }
+}

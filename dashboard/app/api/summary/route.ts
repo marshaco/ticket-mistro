@@ -1,5 +1,7 @@
 // Live AgentCard data from Solana devnet. Read-only: needs no keypairs.
 // Env (repo-root .env): RPC_URL, VAULT_ADDRESS, TOKEN_MINT, SPENDING_LIMIT_ADDRESS.
+import { readProviders, readSettings, readUsage, type Mode } from "../../lib-usage";
+import fs from "fs";
 import path from "path";
 import { Connection, PublicKey } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
@@ -14,8 +16,31 @@ export type LivePayment = {
   errorCode: number | null; // Squads custom error, 6026 = spending limit exceeded
 };
 
+// One tracked thing (agent purchases, or one AI provider's credits), in the mode the user picked.
+export type Tracked = {
+  key: string; // "purchases" or the provider name
+  mode: Mode; // "limit" = hard limit (blocks) | "target" = spend target (tracking only)
+  limit: number;
+  target: number;
+  expires?: string;
+  used: number;
+};
+
+export type Credits = Tracked & {
+  provider: string;
+  simulated: boolean; // true if any usage for this provider came from the demo simulator
+  agents: string[];
+  grantUsd: number;
+  calls: number;
+};
+
+export type TaskRow = { taskId: string; agents: string[]; purchases: number; blocked: number; aiUsd: number; lastTime: number };
+
 export type Summary = {
   mode: "live";
+  purchases: Tracked; // agent purchases today; limit mode = the on-chain Squads limit
+  credits: Credits[]; // one per AI provider
+  tasks: TaskRow[];
   vault: string;
   vaultBalance: number | null;
   limit: { amount: number; remaining: number; resetsAt: number } | { frozen: true };
@@ -60,6 +85,8 @@ async function build(): Promise<Summary> {
   if (!RPC_URL || !VAULT_ADDRESS || !TOKEN_MINT || !SPENDING_LIMIT_ADDRESS) {
     throw new Error("RPC_URL, VAULT_ADDRESS, TOKEN_MINT and SPENDING_LIMIT_ADDRESS must be set in the repo-root .env");
   }
+  // DEMO_SINCE (ISO time or unix seconds): only show activity after the demo started
+  const since = parseSince(readDemoSince() ?? process.env.DEMO_SINCE);
   const connection = new Connection(RPC_URL, "confirmed");
   const vault = new PublicKey(VAULT_ADDRESS);
 
@@ -77,6 +104,7 @@ async function build(): Promise<Summary> {
     if (memo.startsWith("task:admin-test")) continue; // wallet admin tests, not agent activity
     const info = await loadTx(connection, s.signature);
     if (!info) continue;
+    if ((s.blockTime ?? 0) < since) continue;
     const errorCode = (s.err as { InstructionError?: [number, { Custom?: number }] } | null)?.InstructionError?.[1]?.Custom ?? null;
     payments.push({
       signature: s.signature,
@@ -103,15 +131,83 @@ async function build(): Promise<Summary> {
     };
   }
 
+  // AI credit usage is reported off-chain by agents (agent/credits.ts, or POST /api/usage)
+  const usage = readUsage().filter((u) => u.time / 1000 >= since);
+  const providerCfg = readProviders();
+  const providerNames = [...new Set([...Object.keys(providerCfg), ...usage.map((u) => u.provider)])];
+  const onChainLimit = limit ? Number(limit.amount.toString()) : 0;
+  const settings = readSettings(onChainLimit);
+  const credits: Credits[] = providerNames.map((provider) => {
+    const cfg = providerCfg[provider] ?? { grantUsd: 0, hardCapUsd: 0, minTargetUsd: 0, expires: "" };
+    const st = settings.providers[provider] ?? { mode: "limit" as Mode, limit: cfg.hardCapUsd, target: cfg.minTargetUsd, expires: cfg.expires };
+    const mine = usage.filter((u) => u.provider === provider);
+    return {
+      key: provider,
+      provider,
+      mode: st.mode,
+      limit: st.limit,
+      target: st.target,
+      expires: st.expires ?? cfg.expires,
+      grantUsd: cfg.grantUsd,
+      simulated: mine.some((u) => u.simulated),
+      agents: [...new Set(mine.map((u) => u.agent))],
+      used: mine.reduce((sum, e) => sum + e.usd, 0),
+      calls: mine.length,
+    };
+  });
+
+  // Per task: on-chain purchases (paid amount, blocked count) + off-chain AI cost
+  const tasks = new Map<string, TaskRow>();
+  const row = (taskId: string) => {
+    if (!tasks.has(taskId)) tasks.set(taskId, { taskId, agents: [], purchases: 0, blocked: 0, aiUsd: 0, lastTime: 0 });
+    return tasks.get(taskId)!;
+  };
+  for (const p of payments) {
+    const r = row(/^task:([^|]+)/.exec(p.memo)?.[1] ?? p.memo);
+    if (p.status === "paid") r.purchases += p.amount;
+    else r.blocked += 1;
+    r.lastTime = Math.max(r.lastTime, p.blockTime);
+  }
+  for (const u of usage) {
+    const r = row(u.taskId);
+    r.aiUsd += u.usd;
+    if (!r.agents.includes(`${u.agent} (${u.provider})`)) r.agents.push(`${u.agent} (${u.provider})`);
+    r.lastTime = Math.max(r.lastTime, Math.floor(u.time / 1000));
+  }
+
   const ata = balance.value[0]?.account.data.parsed?.info?.tokenAmount?.amount;
   return {
     mode: "live",
+    purchases: {
+      key: "purchases",
+      mode: settings.purchases.mode,
+      limit: onChainLimit, // the real on-chain limit, whatever the saved setting says
+      target: settings.purchases.target,
+      used: "frozen" in limitInfo ? 0 : limitInfo.amount - limitInfo.remaining,
+    },
+    credits,
+    tasks: [...tasks.values()].sort((a, b) => b.lastTime - a.lastTime).slice(0, 8),
     vault: VAULT_ADDRESS,
     vaultBalance: ata === undefined ? null : Number(ata),
     limit: limitInfo,
     payments,
     updatedAt: Date.now(),
   };
+}
+
+// Written by `npm run demo:start` (scripts/demo-start.ts); read on every refresh so no restart is needed.
+function readDemoSince(): string | undefined {
+  try {
+    return fs.readFileSync(path.resolve(process.cwd(), "..", "data", "demo-since"), "utf8").trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseSince(v: string | undefined): number {
+  if (!v) return 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : Math.floor(Date.parse(v) / 1000) || 0;
 }
 
 export async function GET() {

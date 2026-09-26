@@ -10,7 +10,8 @@
     "paid-api": "tsx paid-api/server.js",
     "paid-api:mock": "tsx paid-api/index.ts",
     "agent": "tsx agent/index.ts",
-    "dashboard": "tsx dashboard/server.ts"
+    "dashboard": "tsx dashboard/server.ts",
+    "demo:start": "tsx scripts/demo-start.ts"
   },
   "engines": {
     "node": ">=20"
