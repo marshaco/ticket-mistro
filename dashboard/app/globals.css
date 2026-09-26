@@ -291,3 +291,11 @@ tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
 .settings-error { color: #ff8a73; font-size: 12px; }
 .settings-loading { color: #9aa396; font-size: 12px; }
 @media (max-width: 900px) { .settings-options { grid-template-columns: 1fr; } }
+
+.wallet-current { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: #9aa396; font-size: 11px; }
+.wallet-current b { color: #e7ebdf; font-family: Consolas, monospace; font-weight: 600; }
+.settings-fields input.wallet-input { width: 380px; max-width: 100%; }
+
+.agent-rows { display: grid; gap: 8px; }
+.agent-row { margin-top: 0; }
+.settings-fields input.agent-name { width: 190px; }

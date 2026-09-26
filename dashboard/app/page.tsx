@@ -12,6 +12,7 @@ type Payment = {
   memo: string;
   signature: string;
   status?: "paid" | "blocked";
+  agentName?: string | null;
 };
 
 const dailyLimit = 150;
@@ -193,6 +194,7 @@ export default function Home() {
         memo: p.memo,
         signature: p.signature,
         status: p.status,
+        agentName: p.agentName,
       }))
     : [...mockPayments].sort((a, b) => b.sortKey - a.sortKey);
   const limitAmount = isLive && !("frozen" in live.limit) ? live.limit.amount : isLive ? 0 : dailyLimit;
@@ -385,7 +387,7 @@ export default function Home() {
                       <tr key={payment.signature} className={payment.status === "blocked" ? "row-blocked" : undefined}>
                         <td><span className="time-main">Today</span><span className="time-sub">{payment.time}</span></td>
                         <td><span className="amount-main">${formatAmount(payment.amount)}</span><span className="token-name">TESTUSD</span>{payment.status === "blocked" && <span className="blocked-tag">BLOCKED</span>}</td>
-                        <td><span className="agent-chip"><span className="agent-dot" />{shortAddress(payment.agent)}</span></td>
+                        <td><span className="agent-chip"><span className="agent-dot" />{payment.agentName ? `${payment.agentName} · ${shortAddress(payment.agent)}` : shortAddress(payment.agent)}</span></td>
                         <td><span className="task-label">{parseTask(payment.memo)}</span></td>
                         <td className="explorer-cell"><a className="explorer-link" href={`https://explorer.solana.com/tx/${payment.signature}?cluster=devnet`} target="_blank" rel="noreferrer" aria-label={`Open ${payment.signature} in Solana Explorer`}>VIEW <span aria-hidden="true">↗</span></a></td>
                       </tr>

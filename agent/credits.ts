@@ -2,6 +2,7 @@
 // The log (data/llm-usage.json) is read by the dashboard. This is off-chain: the provider's usage isn't on Solana.
 import fs from "fs";
 import path from "path";
+import { Keypair } from "@solana/web3.js";
 
 export const USAGE_LOG = path.resolve(process.env.LLM_USAGE_LOG || "./data/llm-usage.json");
 
@@ -26,7 +27,21 @@ export type UsageEntry = {
 };
 
 const CONFIG_PATH = path.resolve("./credits.config.json");
-export const AGENT_NAME = process.env.AGENT_NAME || "research-agent";
+// The agent's name comes from Settings → Agents (matched by its public key), so its AI usage and its
+// on-chain purchases show under the same name on the dashboard.
+function agentName(): string {
+  try {
+    const kp = JSON.parse(fs.readFileSync(path.resolve(process.env.AGENT_KEYPAIR_PATH || "./keys/agent.json"), "utf8")) as number[];
+    const publicKey = Keypair.fromSecretKey(Uint8Array.from(kp)).publicKey.toBase58();
+    const saved = JSON.parse(fs.readFileSync(path.resolve("./data/tracking-settings.json"), "utf8")).agents ?? [];
+    const match = saved.find((a: { publicKey: string }) => a.publicKey === publicKey);
+    if (match) return match.name;
+  } catch {
+    // no keypair or settings: fall back below
+  }
+  return process.env.AGENT_NAME || "research-agent";
+}
+export const AGENT_NAME = agentName();
 const PROVIDER = "Anthropic";
 
 const SETTINGS_PATH = path.resolve("./data/tracking-settings.json");

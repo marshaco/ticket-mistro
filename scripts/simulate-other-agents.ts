@@ -1,3 +1,4 @@
+export {};
 // DEMO ONLY: reports model usage from other agents (OpenAI, Gemini) to the dashboard so the
 // multi-provider view has data. Every entry is flagged simulated and the dashboard labels it.
 // Real agents report the same way: POST /api/usage after each model call.
