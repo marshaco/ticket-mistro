@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import crypto from "crypto";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -9,9 +10,12 @@ const app = express();
 // Shared config, per CLAUDE.md's .env. PROVIDER_ADDRESS is who gets paid
 // (this API's own wallet) — NOT the vault.
 // ---------------------------------------------------------------------------
-const RPC_URL = process.env.RPC_URL || "https://api.devnet.solana.com";
-const PAY_TO = process.env.PROVIDER_ADDRESS || "PLACEHOLDER_PROVIDER_ADDRESS_1111111111";
-const TOKEN_MINT = process.env.TOKEN_MINT || "PLACEHOLDER_TOKEN_MINT_11111111111111111";
+const RPC_URL = process.env.RPC_URL;
+const PAY_TO = process.env.PROVIDER_ADDRESS;
+const TOKEN_MINT = process.env.TOKEN_MINT;
+if (!RPC_URL || !PAY_TO || !TOKEN_MINT) {
+  throw new Error("RPC_URL, PROVIDER_ADDRESS and TOKEN_MINT must be set in .env (see scripts/setup.ts)");
+}
  
 const connection = new Connection(RPC_URL, "confirmed");
  
@@ -70,28 +74,27 @@ async function fetchWeather(city) {
 }
  
 // ---------------------------------------------------------------------------
-// Stock quotes: stooq.com CSV endpoint (free, no API key)
+// Stock quotes: Yahoo Finance chart endpoint (free, no API key; stooq's CSV endpoint was retired)
 // ---------------------------------------------------------------------------
 async function fetchStockQuote(symbolRaw) {
   const symbol = symbolRaw.toUpperCase();
-  const stooqSymbol = symbol.includes(".") ? symbol : `${symbol}.US`;
   const res = await fetchWithTimeout(
-    `https://stooq.com/q/l/?s=${stooqSymbol}&f=sd2t2ohlcv&h&e=csv`
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
+    { headers: { "User-Agent": "Mozilla/5.0" } }
   );
-  const csv = await res.text();
-  const lines = csv.trim().split("\n");
-  const [, date, time, open, high, low, close, volume] = lines[1].split(",");
- 
-  if (close === "N/D") throw new Error(`unknown symbol: ${symbol}`);
- 
+  const json = await res.json();
+  const meta = json.chart?.result?.[0]?.meta;
+  if (!meta?.regularMarketPrice) throw new Error(`unknown symbol: ${symbol}`);
+
+  const price = meta.regularMarketPrice;
+  const prevClose = meta.chartPreviousClose;
   return {
-    symbol,
-    price: +close,
-    changePct: +(((+close - +open) / +open) * 100).toFixed(2),
-    open: +open,
-    high: +high,
-    low: +low,
-    volume: +volume,
+    symbol: meta.symbol,
+    price,
+    currency: meta.currency,
+    changePct: prevClose ? +(((price - prevClose) / prevClose) * 100).toFixed(2) : null,
+    dayHigh: meta.regularMarketDayHigh,
+    dayLow: meta.regularMarketDayLow,
   };
 }
  
@@ -213,7 +216,8 @@ const ENDPOINTS = {
 const pendingRequests = new Map();
 const usedSignatures = new Set(); // replay protection, applies in both modes
  
-const STUB_MODE = process.env.STUB_VERIFICATION !== "false"; // default: stubbed
+// Real on-chain verification by default. STUB_VERIFICATION=true only for testing without a wallet.
+const STUB_MODE = process.env.STUB_VERIFICATION === "true";
  
 for (const [path, config] of Object.entries(ENDPOINTS)) {
   app.get(path, async (req, res) => {
@@ -242,11 +246,14 @@ for (const [path, config] of Object.entries(ENDPOINTS)) {
       if (signature.trim().length === 0) {
         return res.status(402).json({ error: "empty signature" });
       }
-    } else {
+    }
+    let paidRequestId = null;
+    if (!STUB_MODE) {
       const result = await verifyPaymentOnChain({ signature, path });
       if (!result.ok) {
         return res.status(402).json({ error: result.reason });
       }
+      paidRequestId = result.requestId;
     }
  
     // Fetch the real data BEFORE marking the signature used, so an upstream
@@ -255,7 +262,8 @@ for (const [path, config] of Object.entries(ENDPOINTS)) {
     try {
       const data = await config.data(req);
       usedSignatures.add(signature);
-      return res.json({ data });
+      if (paidRequestId) pendingRequests.delete(paidRequestId);
+      return res.json({ data, paymentVerified: !STUB_MODE, signature });
     } catch (err) {
       return res.status(502).json({ error: `upstream data fetch failed: ${err.message}` });
     }
@@ -340,13 +348,12 @@ async function verifyPaymentOnChain({ signature, path }) {
     return { ok: false, reason: `paid ${paidAmount}, needed ${pending.price}` };
   }
  
-  // Consumed — a given requestId can't be used to unlock data twice, on top
-  // of the signature-level replay check already done above.
-  pendingRequests.delete(requestId);
-  return { ok: true };
+  // The caller consumes requestId only after the data is delivered, so an upstream
+  // failure doesn't burn the agent's payment.
+  return { ok: true, requestId };
 }
  
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`paid-api listening on http://localhost:${port} (stub verification: ${STUB_MODE})`);
   console.log(`endpoints: ${Object.keys(ENDPOINTS).join(", ")}`);

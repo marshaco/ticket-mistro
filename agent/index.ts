@@ -12,7 +12,7 @@ const PAID_API_URL = process.env.PAID_API_URL || "http://localhost:3001";
 
 const tools = [{
   name: "buy_data",
-  description: "Fetch paid data from the API. Handles payment automatically if the API requires it. Endpoints: /weather?city=<city> (10 tokens), /stock-quote?symbol=<ticker> (20 tokens), /trivia (5 tokens). Pass the full URL.",
+  description: "Fetch paid data from the API. Handles payment automatically if the API requires it. Endpoints: /weather?city=<city> (10 tokens), /stock-quote?symbol=<ticker> (20 tokens), /trivia (5 tokens), /company-financials?ticker=<ticker> (150 tokens). Pass the full URL.",
   input_schema: {
     type: "object" as const,
     properties: {
