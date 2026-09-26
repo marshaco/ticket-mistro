@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AgentCard | Treasury Overview",
-  description: "Read-only view of AgentCard payments and on-chain spending limits on Solana devnet.",
+  title: "CrediTally | Overview",
+  description: "CrediTally: AI credit usage and agent spending, with limits enforced on-chain on Solana.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,6 +1,6 @@
-# AgentCard Dashboard
+# CrediTally Dashboard
 
-Read-only, desktop-first treasury dashboard for the AgentCard Solana devnet demo. The current Phase 1 page uses mock transactions, a mock daily budget, and a clearly labeled simulated blocked-payment event.
+Read-only, desktop-first treasury dashboard for the CrediTally Solana devnet demo. The current Phase 1 page uses mock transactions, a mock daily budget, and a clearly labeled simulated blocked-payment event.
 
 ## Requirements
 

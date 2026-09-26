@@ -1,4 +1,4 @@
-// Live AgentCard data from Solana devnet. Read-only: needs no keypairs.
+// Live CrediTally data from Solana devnet. Read-only: needs no keypairs.
 // Env (repo-root .env): RPC_URL, VAULT_ADDRESS, TOKEN_MINT, SPENDING_LIMIT_ADDRESS.
 import { readProviders, readSettings, readUsage, type Mode } from "../../lib-usage";
 import fs from "fs";

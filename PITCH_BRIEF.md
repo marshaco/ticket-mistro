@@ -1,10 +1,10 @@
-# AgentCard: brief for the presentation team
+# CrediTally: brief for the presentation team
 
 Everything below "What we built" was built and tested today on Solana devnet. Present anything under "Future ideas" as the roadmap, not as done. Slides must be **.pptx**, and the pitch is **3 minutes**.
 
 ## The one-liner
 
-**AgentCard lets a company see and control everything its AI agents spend, both money and AI credits, across Claude, OpenAI and Gemini.** Each customer picks what they need: a **hard limit** that blocks spending, or a **spend target** that tracks how much they still want to use (for example, start-up credits that expire).
+**CrediTally lets a company see and control everything its AI agents spend, both money and AI credits, across Claude, OpenAI and Gemini.** Each customer picks what they need: a **hard limit** that blocks spending, or a **spend target** that tracks how much they still want to use (for example, start-up credits that expire).
 
 ## The problem
 
@@ -14,7 +14,7 @@ Everything below "What we built" was built and tested today on Solana devnet. Pr
 
 ## Two customers, two needs
 
-| Customer | Wants | In AgentCard |
+| Customer | Wants | In CrediTally |
 |---|---|---|
 | A company controlling agent spend | "Never let an agent spend more than X" | **Hard limit** |
 | A start-up using free AI credits | "We should use $X before our credits expire" | **Spend target** (tracking only, never blocks) |
@@ -39,7 +39,7 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 **AI credits across providers**
 - Every model call the agent makes is recorded with its real cost, per task and per agent.
 - One card per provider (Claude, OpenAI, Gemini): credits used, and either a **hard limit** (agents stop calling the model when it's reached) or a **spend target** ("$2.90 still to use, 96 days left").
-- Any agent on any provider can report its usage to AgentCard through one simple web endpoint.
+- Any agent on any provider can report its usage to CrediTally through one simple web endpoint.
 
 **Live dashboard**
 - Updates every few seconds from Solana: every payment with amount, agent, task and an explorer link; blocked payments in red; budget left today.
@@ -63,7 +63,7 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 
 - It runs on **Solana devnet** with a **test stablecoin**, not real money.
 - **All three providers are real** (Claude, Gemini and OpenAI calls with their real costs). Only if the fallback demo-usage script is used, say so out loud.
-- The **AI hard limit** stops agents that check with AgentCard before calling a model. Enforcing it on any agent needs the proxy on the roadmap.
+- The **AI hard limit** stops agents that check with CrediTally before calling a model. Enforcing it on any agent needs the proxy on the roadmap.
 - Changing an on-chain limit from Settings works for our demo wallet, because the demo holds the owner key. For real customers this would be approved by their finance team in Squads.
 - The business model isn't validated yet. Present it as an assumption.
 
@@ -88,7 +88,7 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 
 ## Future ideas (roadmap slide)
 
-- **AI gateway / proxy:** route agents' AI calls through AgentCard, so credit limits are enforced on any agent without its cooperation.
+- **AI gateway / proxy:** route agents' AI calls through CrediTally, so credit limits are enforced on any agent without its cooperation.
 - **Provider usage APIs:** pull account-wide usage from OpenAI, Anthropic and Google directly, including agents that don't report to us.
 - **Mainnet and real stablecoins (USDC).**
 - **Finance approvals in Squads:** limit changes approved by the finance team's multisig, instead of a key on our server.

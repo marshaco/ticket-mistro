@@ -43,9 +43,9 @@ export default function SettingsPage() {
   return (
     <main className="app-shell">
       <aside className="sidebar">
-        <Link className="brand" href="/" aria-label="AgentCard overview">
-          <span className="brand-mark">A</span>
-          <span className="brand-name">agentcard<span>.</span></span>
+        <Link className="brand" href="/" aria-label="CrediTally overview">
+          <span className="brand-mark">C</span>
+          <span className="brand-name">creditally<span>.</span></span>
         </Link>
         <div className="workspace-label">WORKSPACE</div>
         <nav className="side-nav" aria-label="Main navigation">
@@ -74,7 +74,7 @@ export default function SettingsPage() {
           <div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span>Settings</div>
           <div className="topbar-right">
             <span className="network-pill"><span className="network-mark">S</span> DEVNET</span>
-            <span className="avatar" aria-label="AgentCard workspace">AC</span>
+            <span className="avatar" aria-label="CrediTally workspace">CT</span>
           </div>
         </header>
 

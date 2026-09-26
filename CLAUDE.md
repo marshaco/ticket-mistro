@@ -1,4 +1,4 @@
-# CLAUDE.md: AgentCard
+# CLAUDE.md: CrediTally
 
 Spend control for AI agents, built for the BUILD IRL Solana hackathon (one day, submissions close 16:30, slides must be `.pptx`).
 Agents pay for data and services from a shared Squads vault on Solana, within spending limits that Squads enforces on-chain. Every payment is tagged with the task it was for, and a live dashboard shows finance what each agent bought, what was blocked, and how much budget is left.

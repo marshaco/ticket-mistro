@@ -219,9 +219,9 @@ export default function Home() {
   return (
     <main className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="#overview" aria-label="AgentCard overview">
-          <span className="brand-mark">A</span>
-          <span className="brand-name">agentcard<span>.</span></span>
+        <a className="brand" href="#overview" aria-label="CrediTally overview">
+          <span className="brand-mark">C</span>
+          <span className="brand-name">creditally<span>.</span></span>
         </a>
 
         <div className="workspace-label">WORKSPACE</div>
@@ -254,7 +254,7 @@ export default function Home() {
           <div className="topbar-right">
             <span className="mode-pill"><span className="mode-dot" /> {isLive ? "LIVE DATA" : "MOCK DATA"}</span>
             <span className="network-pill"><span className="network-mark">S</span> DEVNET</span>
-            <span className="avatar" aria-label="AgentCard workspace">AC</span>
+            <span className="avatar" aria-label="CrediTally workspace">CT</span>
           </div>
         </header>
 
@@ -432,7 +432,7 @@ export default function Home() {
           )}
             </>
           )}
-          <footer className="page-footer"><span>AGENTCARD TREASURY</span><span>READ-ONLY · SOLANA DEVNET</span></footer>
+          <footer className="page-footer"><span>CREDITALLY</span><span>READ-ONLY · SOLANA DEVNET</span></footer>
         </div>
       </section>
     </main>
