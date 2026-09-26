@@ -249,7 +249,6 @@ function WalletRow({ summary, onSaved }: { summary: Summary; onSaved: () => void
         {summary.wallet.connected ? (
           <>
             Connected · multisig <b>{summary.wallet.multisig ? short(summary.wallet.multisig) : "—"}</b> · vault <b>{short(summary.vault)}</b>
-            {summary.wallet.agents.length > 0 && <> · agent keys on the limit: {summary.wallet.agents.map(short).join(", ")}</>}
           </>
         ) : (
           "Not connected"
@@ -267,12 +266,10 @@ function WalletRow({ summary, onSaved }: { summary: Summary; onSaved: () => void
 
 // The customer's agents: a name + the public key each agent pays from. The dashboard tracks only these.
 function AgentsRow({ summary, onSaved }: { summary: Summary; onSaved: () => void }) {
-  const initial = summary.agents.length
-    ? summary.agents
-    : summary.wallet.agents.map((publicKey, i) => ({ name: `Agent ${i + 1}`, publicKey, provider: "Anthropic" })); // prefill from the connected wallet
-  const [rows, setRows] = useState(initial.length ? initial : [{ name: "", publicKey: "", provider: "Anthropic" }]);
+  // Agents are always entered by the customer (no prefill from the wallet)
+  const [rows, setRows] = useState(summary.agents.length ? summary.agents : [{ name: "", publicKey: "", provider: "Anthropic" }]);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(summary.agents.length === 0 && initial.length ? "Found on your wallet's spending limit: name them and save." : null);
+  const [msg, setMsg] = useState<string | null>(null);
 
   const update = (i: number, field: "name" | "publicKey" | "provider", value: string) =>
     setRows((r) => r.map((row, j) => (j === i ? { ...row, [field]: value } : row)));
