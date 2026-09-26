@@ -251,3 +251,16 @@ tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
 .limit-foot { color: #737d70; font-family: Consolas, monospace; font-size: 9px; letter-spacing: .4px; }
 .task-frame { margin-top: 14px; }
 @media (max-width: 900px) { .limits-grid { grid-template-columns: 1fr; } }
+
+/* Mode toggle + editable amount on tracked cards */
+.limit-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mode-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.mode-toggle button { padding: 5px 10px; border: 0; background: transparent; color: #9aa396; font: 600 10px/1 Consolas, monospace; letter-spacing: .3px; cursor: pointer; }
+.mode-toggle button.on { background: #b8f26b; color: #11150f; }
+.limit-edit { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: #9aa396; font-size: 11px; }
+.limit-edit label { display: inline-flex; align-items: center; gap: 6px; }
+.limit-edit input { width: 90px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: #141813; color: #e7ebdf; font: 12px Consolas, monospace; }
+.limit-edit input[type="date"] { width: 130px; }
+.save-btn { padding: 6px 12px; border: 1px solid #b8f26b; border-radius: 5px; background: transparent; color: #b8f26b; font: 600 10px Consolas, monospace; cursor: pointer; }
+.save-btn:disabled { border-color: var(--line); color: #5d665a; cursor: default; }
+.limit-msg { color: #9aa396; font: 10px Consolas, monospace; }

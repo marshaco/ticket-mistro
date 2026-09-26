@@ -1,6 +1,6 @@
 // Live AgentCard data from Solana devnet. Read-only: needs no keypairs.
 // Env (repo-root .env): RPC_URL, VAULT_ADDRESS, TOKEN_MINT, SPENDING_LIMIT_ADDRESS.
-import { readProviders, readUsage } from "../../lib-usage";
+import { readProviders, readSettings, readUsage, type Mode } from "../../lib-usage";
 import fs from "fs";
 import path from "path";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -16,15 +16,21 @@ export type LivePayment = {
   errorCode: number | null; // Squads custom error, 6026 = spending limit exceeded
 };
 
-export type Credits = {
+// One tracked thing (agent purchases, or one AI provider's credits), in the mode the user picked.
+export type Tracked = {
+  key: string; // "purchases" or the provider name
+  mode: Mode; // "limit" = hard limit (blocks) | "target" = spend target (tracking only)
+  limit: number;
+  target: number;
+  expires?: string;
+  used: number;
+};
+
+export type Credits = Tracked & {
   provider: string;
   simulated: boolean; // true if any usage for this provider came from the demo simulator
   agents: string[];
   grantUsd: number;
-  hardCapUsd: number; // hard limit: the agent stops calling the model at this point
-  minTargetUsd: number; // soft minimum: tracking only, how much should be used before expiry
-  expires: string; // ISO date
-  usedUsd: number;
   calls: number;
 };
 
@@ -32,7 +38,7 @@ export type TaskRow = { taskId: string; agents: string[]; purchases: number; blo
 
 export type Summary = {
   mode: "live";
-  purchaseMinTarget: number; // soft minimum for agent purchases per day (tracking only)
+  purchases: Tracked; // agent purchases today; limit mode = the on-chain Squads limit
   credits: Credits[]; // one per AI provider
   tasks: TaskRow[];
   vault: string;
@@ -129,15 +135,23 @@ async function build(): Promise<Summary> {
   const usage = readUsage().filter((u) => u.time / 1000 >= since);
   const providerCfg = readProviders();
   const providerNames = [...new Set([...Object.keys(providerCfg), ...usage.map((u) => u.provider)])];
+  const onChainLimit = limit ? Number(limit.amount.toString()) : 0;
+  const settings = readSettings(onChainLimit);
   const credits: Credits[] = providerNames.map((provider) => {
     const cfg = providerCfg[provider] ?? { grantUsd: 0, hardCapUsd: 0, minTargetUsd: 0, expires: "" };
+    const st = settings.providers[provider] ?? { mode: "limit" as Mode, limit: cfg.hardCapUsd, target: cfg.minTargetUsd, expires: cfg.expires };
     const mine = usage.filter((u) => u.provider === provider);
     return {
+      key: provider,
       provider,
+      mode: st.mode,
+      limit: st.limit,
+      target: st.target,
+      expires: st.expires ?? cfg.expires,
+      grantUsd: cfg.grantUsd,
       simulated: mine.some((u) => u.simulated),
       agents: [...new Set(mine.map((u) => u.agent))],
-      ...cfg,
-      usedUsd: mine.reduce((sum, e) => sum + e.usd, 0),
+      used: mine.reduce((sum, e) => sum + e.usd, 0),
       calls: mine.length,
     };
   });
@@ -164,7 +178,13 @@ async function build(): Promise<Summary> {
   const ata = balance.value[0]?.account.data.parsed?.info?.tokenAmount?.amount;
   return {
     mode: "live",
-    purchaseMinTarget: Number(process.env.PURCHASE_MIN_TARGET || 60),
+    purchases: {
+      key: "purchases",
+      mode: settings.purchases.mode,
+      limit: onChainLimit, // the real on-chain limit, whatever the saved setting says
+      target: settings.purchases.target,
+      used: "frozen" in limitInfo ? 0 : limitInfo.amount - limitInfo.remaining,
+    },
     credits,
     tasks: [...tasks.values()].sort((a, b) => b.lastTime - a.lastTime).slice(0, 8),
     vault: VAULT_ADDRESS,

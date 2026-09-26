@@ -112,38 +112,99 @@ function formatCountdown(seconds: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
 }
 
-function LimitCard(props: {
+type TrackedView = { key: string; mode: "limit" | "target"; limit: number; target: number; expires?: string; used: number };
+
+function money(n: number) {
+  return `$${n.toFixed(n !== 0 && Math.abs(n) < 1 ? 4 : 2)}`;
+}
+
+// One tracked thing. The user toggles between a hard limit (blocks spend) and a spend target
+// (tracking only) and sets the amount; Save persists it via PUT /api/settings.
+function TrackCard(props: {
+  item: TrackedView;
   kicker: string;
-  unit: string;
-  decimals: number;
-  used: number;
-  hardLimit: number;
-  hardLabel: string;
-  target: number;
-  targetLabel: string;
+  limitNote: string; // what enforces the hard limit
   footnote: string;
+  now: number;
+  onSaved: () => void;
 }) {
-  const { kicker, unit, decimals, used, hardLimit, hardLabel, target, targetLabel, footnote } = props;
-  // 2 decimals normally; more only for sub-dollar amounts (e.g. a single model call)
-  const fmt = (n: number) => `${unit}${n.toFixed(n !== 0 && Math.abs(n) < 1 ? decimals : 2)}`;
-  const hardPct = hardLimit > 0 ? Math.min((used / hardLimit) * 100, 100) : 100;
-  const hardState = hardPct >= 100 ? "over" : hardPct >= 80 ? "warning" : "healthy";
-  const targetPct = target > 0 ? Math.min((used / target) * 100, 100) : 100;
-  const toGo = Math.max(0, target - used);
+  const { item, kicker, limitNote, footnote, now, onSaved } = props;
+  const [mode, setMode] = useState(item.mode);
+  const [amount, setAmount] = useState(String(item.mode === "limit" ? item.limit : item.target));
+  const [expires, setExpires] = useState(item.expires ?? "");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const switchMode = (m: "limit" | "target") => {
+    setMode(m);
+    setAmount(String(m === "limit" ? item.limit : item.target));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setMsg(item.key === "purchases" && mode === "limit" ? "Updating the limit on Solana…" : null);
+    try {
+      const body: Record<string, unknown> = { key: item.key, mode };
+      body[mode] = Number(amount);
+      if (expires) body.expires = expires;
+      const res = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const out = await res.json();
+      if (!res.ok) throw new Error(out.error ?? res.statusText);
+      setMsg(out.signature ? "Saved · limit updated on-chain" : "Saved");
+      onSaved();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const value = Number(amount) || 0;
+  const savedValue = mode === "limit" ? item.limit : item.target;
+  const pct = savedValue > 0 ? Math.min((item.used / savedValue) * 100, 100) : 100;
+  const state = mode === "limit" ? (pct >= 100 ? "over" : pct >= 80 ? "warning" : "healthy") : "target-fill";
+  const status =
+    mode === "limit"
+      ? pct >= 100 ? "LIMIT REACHED" : `${money(Math.max(0, savedValue - item.used))} left of ${money(savedValue)}`
+      : item.used >= savedValue ? "TARGET MET" : `${money(savedValue - item.used)} still to spend of ${money(savedValue)}`;
+  const days = item.expires ? Math.max(0, Math.ceil((Date.parse(item.expires) - now) / 86_400_000)) : null;
+  const dirty = mode !== item.mode || value !== savedValue || (expires || "") !== (item.expires ?? "");
+
   return (
     <article className="budget-panel limit-card">
-      <div className="section-label">{kicker}</div>
-      <div className="big-amount limit-used">{fmt(used)}<span> <small>used</small></span></div>
-
-      <div className="limit-row">
-        <div className="limit-row-head"><span>{hardLabel}</span><b>{hardPct >= 100 ? "LIMIT REACHED" : `${fmt(Math.max(0, hardLimit - used))} left of ${fmt(hardLimit)}`}</b></div>
-        <div className="budget-meter"><div className={`budget-meter-fill ${hardState}`} style={{ width: `${hardPct}%` }} /></div>
+      <div className="limit-card-top">
+        <div className="section-label">{kicker}</div>
+        <div className="mode-toggle" role="group" aria-label="What to track">
+          <button type="button" className={mode === "limit" ? "on" : ""} onClick={() => switchMode("limit")}>Hard limit</button>
+          <button type="button" className={mode === "target" ? "on" : ""} onClick={() => switchMode("target")}>Spend target</button>
+        </div>
       </div>
 
+      <div className="big-amount limit-used">{money(item.used)}<span> <small>{item.key === "purchases" ? "spent today" : "used"}</small></span></div>
+
       <div className="limit-row">
-        <div className="limit-row-head"><span>{targetLabel}</span><b className={toGo === 0 ? "target-met" : "target-open"}>{toGo === 0 ? "TARGET MET" : `${fmt(toGo)} still to use of ${fmt(target)}`}</b></div>
-        <div className="budget-meter target-meter"><div className="budget-meter-fill target-fill" style={{ width: `${targetPct}%` }} /></div>
+        <div className="limit-row-head">
+          <span>{mode === "limit" ? limitNote : `Spend target${days !== null ? ` · ${days} days left` : ""} · tracking only, never blocks`}</span>
+          <b className={mode === "target" ? (item.used >= savedValue ? "target-met" : "target-open") : ""}>{mode === item.mode ? status : "not saved yet"}</b>
+        </div>
+        <div className={`budget-meter ${mode === "target" ? "target-meter" : ""}`}>
+          <div className={`budget-meter-fill ${state}`} style={{ width: `${mode === item.mode ? pct : 0}%` }} />
+        </div>
       </div>
+
+      <div className="limit-edit">
+        <label>
+          {mode === "limit" ? (item.key === "purchases" ? "Daily limit" : "Limit") : item.key === "purchases" ? "Daily target" : "Target"} $
+          <input type="number" min="0" step={item.key === "purchases" ? "1" : "0.5"} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </label>
+        {mode === "target" && item.key !== "purchases" && (
+          <label>
+            by <input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
+          </label>
+        )}
+        <button type="button" className="save-btn" disabled={!dirty || saving} onClick={save}>{saving ? "Saving…" : "Save"}</button>
+      </div>
+      {msg && <div className="limit-msg">{msg}</div>}
 
       <div className="limit-foot">{footnote}</div>
     </article>
@@ -157,6 +218,7 @@ export default function Home() {
   const [liveError, setLiveError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
+  const [reloadTick, setReloadTick] = useState(0);
   useEffect(() => {
     let stop = false;
     const load = async () => {
@@ -178,7 +240,8 @@ export default function Home() {
       stop = true;
       clearInterval(id);
     };
-  }, []);
+  }, [reloadTick]);
+  const reload = () => setReloadTick((t) => t + 1);
 
   const isLive = live !== null;
   const frozen = isLive && "frozen" in live.limit;
@@ -205,9 +268,7 @@ export default function Home() {
   const blockedCount = payments.filter((p) => p.status === "blocked").length;
   const latestBlocked = payments.find((p) => p.status === "blocked");
   const vaultShort = isLive ? shortAddress(live.vault) : "8rT2...vA7k";
-  const purchaseTarget = isLive ? live.purchaseMinTarget : 0;
   const credits = isLive ? live.credits : null;
-  const daysLeft = (expires: string) => Math.max(0, Math.ceil((Date.parse(expires) - now) / 86_400_000));
   const updatedAgo = isLive ? Math.max(0, Math.round((now - live.updatedAt) / 1000)) : null;
 
   return (
@@ -304,31 +365,26 @@ export default function Home() {
           {isLive && credits && (
             <section className="limits-section" aria-labelledby="limits-title">
               <div className="section-label"><span className="label-mark budget-mark" /> LIMITS &amp; TARGETS</div>
-              <h2 id="limits-title" className="limits-title">Hard limits block spend. Soft minimums track what should be used.</h2>
+              <h2 id="limits-title" className="limits-title">For each one, choose a hard limit (blocks spend) or a spend target (tracks how much you still want to spend).</h2>
               <div className="limits-grid">
-                <LimitCard
+                <TrackCard
+                  key={`purchases-${live.purchases.mode}-${live.purchases.limit}-${live.purchases.target}`}
+                  item={live.purchases}
                   kicker="AGENT PURCHASES · TODAY"
-                  unit="$"
-                  decimals={2}
-                  used={spentToday}
-                  hardLimit={limitAmount}
-                  hardLabel="Hard limit · enforced on-chain by Squads"
-                  target={purchaseTarget}
-                  targetLabel="Soft minimum · daily target"
-                  footnote={`${blockedCount} payment${blockedCount === 1 ? "" : "s"} rejected on-chain`}
+                  limitNote="Hard limit · enforced on-chain by Squads"
+                  footnote={`${blockedCount} payment${blockedCount === 1 ? "" : "s"} rejected on-chain · on-chain safety limit $${live.purchases.limit}/day always applies`}
+                  now={now}
+                  onSaved={reload}
                 />
                 {credits.map((c) => (
-                  <LimitCard
-                    key={c.provider}
+                  <TrackCard
+                    key={`${c.provider}-${c.mode}-${c.limit}-${c.target}-${c.expires}`}
+                    item={c}
                     kicker={`AI CREDITS · ${c.provider.toUpperCase()}${c.simulated ? " · SIMULATED" : ""}`}
-                    unit="$"
-                    decimals={4}
-                    used={c.usedUsd}
-                    hardLimit={c.hardCapUsd}
-                    hardLabel={`Hard cap · agents stop calling the model (grant $${c.grantUsd})`}
-                    target={c.minTargetUsd}
-                    targetLabel={`Soft minimum · use before ${c.expires} (${daysLeft(c.expires)} days)`}
+                    limitNote={`Hard limit · agents stop calling the model (grant $${c.grantUsd})`}
                     footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
+                    now={now}
+                    onSaved={reload}
                   />
                 ))}
               </div>

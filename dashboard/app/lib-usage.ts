@@ -43,3 +43,38 @@ export function readProviders(): Record<string, ProviderConfig> {
     return {};
   }
 }
+
+// ---------------------------------------------------------------------------
+// Tracking settings: per tracked thing, the user picks a mode and an amount.
+//   "limit"  = hard limit: spending past it is blocked (purchases: on-chain by Squads; AI: agent stops)
+//   "target" = spend target: tracking only, how much should be spent (before a date)
+// Stored in data/tracking-settings.json, read by the dashboard and by the agent (agent/credits.ts).
+// ---------------------------------------------------------------------------
+export type Mode = "limit" | "target";
+export type TrackSetting = { mode: Mode; limit: number; target: number; expires?: string };
+export type Settings = { purchases: TrackSetting; providers: Record<string, TrackSetting> };
+
+const SETTINGS = path.resolve(ROOT, "data/tracking-settings.json");
+
+export function readSettings(onChainLimit?: number): Settings {
+  let saved: Partial<Settings> = {};
+  try {
+    saved = JSON.parse(fs.readFileSync(SETTINGS, "utf8"));
+  } catch {
+    saved = {};
+  }
+  const providers: Record<string, TrackSetting> = {};
+  for (const [name, cfg] of Object.entries(readProviders())) {
+    providers[name] = saved.providers?.[name] ?? { mode: "limit", limit: cfg.hardCapUsd, target: cfg.minTargetUsd, expires: cfg.expires };
+  }
+  for (const [name, s] of Object.entries(saved.providers ?? {})) providers[name] ??= s;
+  return {
+    purchases: saved.purchases ?? { mode: "limit", limit: onChainLimit ?? 100, target: 60 },
+    providers,
+  };
+}
+
+export function writeSettings(s: Settings) {
+  fs.mkdirSync(path.dirname(SETTINGS), { recursive: true });
+  fs.writeFileSync(SETTINGS, JSON.stringify(s, null, 2));
+}

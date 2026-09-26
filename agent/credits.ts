@@ -29,7 +29,16 @@ const CONFIG_PATH = path.resolve("./credits.config.json");
 export const AGENT_NAME = process.env.AGENT_NAME || "research-agent";
 const PROVIDER = "Anthropic";
 
+const SETTINGS_PATH = path.resolve("./data/tracking-settings.json");
+
+// The user picks per provider on the dashboard: "limit" (hard cap, agent stops) or "target" (tracking only).
 function hardCapUsd(provider: string): number {
+  try {
+    const st = JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf8")).providers?.[provider];
+    if (st) return st.mode === "limit" ? Number(st.limit) : Infinity;
+  } catch {
+    // no saved settings yet: fall back to the config defaults
+  }
   try {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")).providers[provider]?.hardCapUsd ?? Infinity;
   } catch {
