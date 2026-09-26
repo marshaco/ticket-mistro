@@ -18,7 +18,7 @@ const question = args.join(" ") || "What's the current weather in Dublin?";
 const SETUP: Record<string, { provider: Provider; keypair: string; name: string; model: string }> = {
   claude: { provider: "Anthropic", keypair: process.env.AGENT_KEYPAIR_PATH || "./keys/agent.json", name: "Research agent", model: "claude-sonnet-4-6" },
   openai: { provider: "OpenAI", keypair: process.env.OPENAI_AGENT_KEYPAIR_PATH || "./keys/agent-openai.json", name: "OpenAI agent", model: process.env.OPENAI_MODEL || "gpt-4.1-mini" },
-  gemini: { provider: "Google Gemini", keypair: process.env.GEMINI_AGENT_KEYPAIR_PATH || "./keys/agent-gemini.json", name: "Gemini agent", model: process.env.GEMINI_MODEL || "gemini-2.5-flash" },
+  gemini: { provider: "Google Gemini", keypair: process.env.GEMINI_AGENT_KEYPAIR_PATH || "./keys/agent-gemini.json", name: "Gemini agent", model: process.env.GEMINI_MODEL || "gemini-3.8-flash" },
 };
 const setup = SETUP[providerArg];
 if (!setup) throw new Error(`Unknown --provider "${providerArg}" (use claude, openai or gemini)`);

@@ -25,7 +25,7 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 
 **Onboarding by public key (Settings page)**
 - **Connect your wallet:** paste your Squads multisig address. The vault, the agent spending limit, the token and the agent keys are **found on Solana automatically**.
-- **Add your agents:** for each AI agent, pick the AI it runs on (**Claude, OpenAI or Gemini**), paste its public key, and give it a name. The dashboard then tracks only those agents, by name.
+- **Add your agents:** for each AI agent, pick the AI it runs on (**Claude, OpenAI or Gemini**), paste its **public key**, and give it a name. The dashboard then tracks only those agents, by name. Customers only ever give us **public keys**; their AI API keys stay secret on their own server.
 - **Choose what to track:** for agent purchases, and separately for each AI provider's credits, choose **Hard limit** or **Spend target** and set the amount (and a date for credit targets).
 
 **Agent purchases (this is where Solana is used)**
@@ -45,8 +45,9 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 - Updates every few seconds from Solana: every payment with amount, agent, task and an explorer link; blocked payments in red; budget left today.
 - A per-task view that puts each task's on-chain purchases next to its AI cost.
 
-**The Claude agent**
-- A real Claude agent that buys data when it needs it: it's told the price, pays from its allowance, and gets the data. You type its question live, for example "What's Apple trading at?".
+**Real agents on Claude, Gemini and OpenAI**
+- Three agents, one per AI provider, set up the same way: each has its own Solana key, pays from the company vault under the on-chain limit, and logs its real AI cost. You type the question live, for example "What's Apple trading at?".
+- Claude and Gemini are tested end to end today. OpenAI works the same way but our OpenAI account had no credits at the time of testing, so check before the demo.
 
 ## How Solana is used (for the "why Solana" slide)
 
@@ -61,7 +62,7 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 ## Say these out loud (don't overclaim)
 
 - It runs on **Solana devnet** with a **test stablecoin**, not real money.
-- **Only the Claude usage is real.** The OpenAI and Gemini numbers on the dashboard are simulated for the demo and are **labelled "SIMULATED"** on screen.
+- **Claude and Gemini usage is real.** OpenAI is real only if that account has credits by demo time; if the demo uses the fallback demo-usage script for OpenAI instead, **say so out loud** (there's no on-screen label).
 - The **AI hard limit** stops agents that check with AgentCard before calling a model. Enforcing it on any agent needs the proxy on the roadmap.
 - Changing an on-chain limit from Settings works for our demo wallet, because the demo holds the owner key. For real customers this would be approved by their finance team in Squads.
 - The business model isn't validated yet. Present it as an assumption.
@@ -76,17 +77,18 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 
 ## Suggested demo (about 2 minutes)
 
-1. **Settings:** "Paste your Squads address and your agents' keys, pick Claude, OpenAI or Gemini for each, and choose a hard limit or a spend target."
-2. **Dashboard:** "Here's everything our agents spend: purchases on Solana, and AI credits for each provider."
-3. **Ask the agent** "What's the weather in Dublin?" It pays $10 on Solana and gets live data, and the purchase and Claude credit cards both move.
-4. **Ask** "What's Apple trading at?" It pays $20.
+0. **Start empty** (Colin runs `npm run demo:start` beforehand): the dashboard says "Nothing tracked yet".
+1. **Settings:** "Paste your Squads address, then each agent's public key, and pick Claude, OpenAI or Gemini for it. Only public keys, nothing secret." Choose a hard limit or a spend target.
+2. **Dashboard:** "Everything our agents spend: purchases on Solana, and AI credits for each provider." Still at zero.
+3. **Ask the Gemini agent** "What's the weather in Dublin?" It pays $10 on Solana and gets live data; the purchase card and the Gemini credit card both move.
+4. **Ask the Claude agent** "What's Apple trading at?" It pays $20; the Claude card moves.
 5. **Ask** "Get Apple's annual financials." That costs $150, over the $100 limit: **Solana rejects it**, a red row appears, and the explorer shows the rejected transaction.
 6. **Close on the credit cards:** "Same controls for your AI credits: a limit so agents can't burn them, or a target so you don't waste the free ones."
 
 ## Future ideas (roadmap slide)
 
 - **AI gateway / proxy:** route agents' AI calls through AgentCard, so credit limits are enforced on any agent without its cooperation.
-- **Real OpenAI and Gemini usage:** pull usage from the providers directly instead of the demo simulation.
+- **Provider usage APIs:** pull account-wide usage from OpenAI, Anthropic and Google directly, including agents that don't report to us.
 - **Mainnet and real stablecoins (USDC).**
 - **Finance approvals in Squads:** limit changes approved by the finance team's multisig, instead of a key on our server.
 - **Freeze switch and approved-vendors-only:** instantly stop an agent, or only let it pay approved sellers, both enforced on-chain. Both are prototyped and tested, but not in the product yet.

@@ -246,8 +246,14 @@ function WalletRow({ summary, onSaved }: { summary: Summary; onSaved: () => void
       </div>
       <div className="wallet-current">
         <span className="status-dot" />
-        {summary.wallet.connected ? "Tracking" : "Tracking demo wallet"} · multisig <b>{summary.wallet.multisig ? short(summary.wallet.multisig) : "—"}</b> · vault <b>{short(summary.vault)}</b>
-        {summary.wallet.agents.length > 0 && <> · agents {summary.wallet.agents.map(short).join(", ")}</>}
+        {summary.wallet.connected ? (
+          <>
+            Connected · multisig <b>{summary.wallet.multisig ? short(summary.wallet.multisig) : "—"}</b> · vault <b>{short(summary.vault)}</b>
+            {summary.wallet.agents.length > 0 && <> · agent keys on the limit: {summary.wallet.agents.map(short).join(", ")}</>}
+          </>
+        ) : (
+          "Not connected"
+        )}
       </div>
       <div className="settings-fields">
         <input className="wallet-input" placeholder="Squads multisig address" value={address} onChange={(e) => setAddress(e.target.value)} />

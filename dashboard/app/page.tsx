@@ -210,6 +210,8 @@ export default function Home() {
   const latestBlocked = payments.find((p) => p.status === "blocked");
   const vaultShort = isLive ? shortAddress(live.vault) : "8rT2...vA7k";
   const credits = isLive ? live.credits : null;
+  // Empty until the customer connects a wallet and registers at least one agent in Settings
+  const onboarding = isLive && (!live.wallet.connected || live.agents.length === 0);
   const updatedAgo = isLive ? Math.max(0, Math.round((now - live.updatedAt) / 1000)) : null;
 
   return (
@@ -264,6 +266,20 @@ export default function Home() {
             <div className="date-stamp"><span className="date-icon" aria-hidden="true">▦</span><span>TODAY <b>·</b> DEVNET</span></div>
           </div>
 
+          {onboarding && (
+            <section className="budget-panel onboarding-panel" aria-labelledby="onboarding-title">
+              <div className="section-label"><span className="label-mark budget-mark" /> GET STARTED</div>
+              <h2 id="onboarding-title">Nothing tracked yet</h2>
+              <ol>
+                <li><b>Connect your wallet:</b> paste your Squads multisig address.</li>
+                <li><b>Add your agents:</b> for each AI agent (Claude, OpenAI or Gemini), paste its public key and give it a name.</li>
+                <li><b>Choose what to track:</b> a hard limit or a spend target, for purchases and for each AI provider.</li>
+              </ol>
+              <Link href="/settings" className="save-btn onboarding-cta">Open Settings →</Link>
+            </section>
+          )}
+          {!onboarding && (
+            <>
           <section className="overview-grid" aria-label="Today's budget and blocked event">
             <article className="budget-panel">
               <div className="panel-topline">
@@ -399,6 +415,8 @@ export default function Home() {
             </div>
           </section>
 
+            </>
+          )}
           <footer className="page-footer"><span>AGENTCARD TREASURY</span><span>READ-ONLY · SOLANA DEVNET</span></footer>
         </div>
       </section>

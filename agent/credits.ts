@@ -20,12 +20,13 @@ const PRICES: Record<string, { input: number; output: number }> = {
   "gpt-4.1-mini": { input: 0.4, output: 1.6 },
   "gpt-4.1": { input: 2, output: 8 },
   "gemini-2.5-flash": { input: 0.3, output: 2.5 },
+  "gemini-3.8-flash": { input: 0.3, output: 2.5 }, // assumed same as 2.5 Flash; check Google's current pricing
   "gemini-2.5-pro": { input: 1.25, output: 10 },
 };
 const PROVIDER_DEFAULT_PRICE: Record<Provider, string> = {
   Anthropic: "claude-sonnet-4-6",
   OpenAI: "gpt-4.1-mini",
-  "Google Gemini": "gemini-2.5-flash",
+  "Google Gemini": "gemini-3.8-flash",
 };
 
 export type UsageEntry = {

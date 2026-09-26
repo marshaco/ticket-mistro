@@ -86,7 +86,7 @@ async function loadTx(connection: Connection, signature: string) {
 async function build(): Promise<Summary> {
   // Track the customer's connected wallet (Settings), else the demo wallet from .env
   const { wallet, agents: agentList = [] } = readSettings();
-  const agentNames = new Map(agentList.map((a) => [a.publicKey, `${a.name} · ${a.provider === "Anthropic" ? "Claude" : a.provider}`]));
+  const agentNames = new Map(agentList.map((a) => [a.publicKey, `${a.name} · ${a.provider === "Anthropic" ? "Claude" : a.provider === "Google Gemini" ? "Gemini" : a.provider}`]));
   const RPC_URL = process.env.RPC_URL;
   const VAULT_ADDRESS = wallet?.vault ?? process.env.VAULT_ADDRESS;
   const TOKEN_MINT = wallet?.mint ?? process.env.TOKEN_MINT;
@@ -113,8 +113,8 @@ async function build(): Promise<Summary> {
     if (memo.startsWith("task:admin-test")) continue; // wallet admin tests, not agent activity
     const info = await loadTx(connection, s.signature);
     if (!info) continue;
-    // If the customer listed their agents, only track payments made by those keys
-    if (agentNames.size > 0 && !agentNames.has(info.agent)) continue;
+    // Only track agents the customer registered in Settings
+    if (!agentNames.has(info.agent)) continue;
     if ((s.blockTime ?? 0) < since) continue;
     const errorCode = (s.err as { InstructionError?: [number, { Custom?: number }] } | null)?.InstructionError?.[1]?.Custom ?? null;
     payments.push({
@@ -146,6 +146,7 @@ async function build(): Promise<Summary> {
   // AI credit usage is reported off-chain by agents (agent/credits.ts, or POST /api/usage)
   const usage = readUsage()
     .filter((u) => u.time / 1000 >= since)
+    .filter((u) => u.agentPublicKey && agentNames.has(u.agentPublicKey)) // registered agents only
     // name each model call by its agent's public key, as set in Settings → Agents
     .map((u) => (u.agentPublicKey && agentNames.has(u.agentPublicKey) ? { ...u, agent: agentNames.get(u.agentPublicKey)! } : u));
   const providerCfg = readProviders();
