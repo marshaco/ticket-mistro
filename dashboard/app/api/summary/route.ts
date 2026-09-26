@@ -74,6 +74,7 @@ async function build(): Promise<Summary> {
     // RPC memo looks like "[55] task:abc|req:uuid"; strip the length prefix
     const memo = (s.memo ?? "").replace(/^\[\d+\]\s*/, "");
     if (!memo.startsWith("task:")) continue; // setup / admin txs
+    if (memo.startsWith("task:admin-test")) continue; // wallet admin tests, not agent activity
     const info = await loadTx(connection, s.signature);
     if (!info) continue;
     const errorCode = (s.err as { InstructionError?: [number, { Custom?: number }] } | null)?.InstructionError?.[1]?.Custom ?? null;
