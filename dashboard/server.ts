@@ -175,7 +175,8 @@ async function loadSummary(): Promise<Summary> {
     vault: config.vault.toBase58(),
     vaultBalance,
     limit: { amount: limitAmount, remaining, period: "day" },
-    spentToday: paidToday.reduce((total, payment) => total + payment.amount, 0),
+    // Match the on-chain budget: what has been used since the last Squads period reset
+    spentToday: limitAmount - remaining,
     paidCount: paidToday.length,
     blockedCount: paymentsToday.filter((payment) => payment.status === "Blocked").length,
     byTask: [...taskTotals.entries()]
