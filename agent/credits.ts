@@ -76,8 +76,17 @@ export class AgentIdentity {
     return readJson(CONFIG_PATH)?.providers?.[this.provider]?.hardCapUsd ?? Infinity;
   }
 
+  // Same count as the dashboard: real usage since the demo started (npm run demo:start)
   usedUsd(): number {
-    return readUsage().filter((e) => e.provider === this.provider).reduce((sum, e) => sum + e.usd, 0);
+    let since = 0;
+    try {
+      since = Number(fs.readFileSync(path.resolve("./data/demo-since"), "utf8").trim()) * 1000 || 0;
+    } catch {
+      since = 0;
+    }
+    return readUsage()
+      .filter((e) => e.provider === this.provider && !e.simulated && e.time >= since)
+      .reduce((sum, e) => sum + e.usd, 0);
   }
 
   // Throws before a model call once the provider's hard limit has been reached.

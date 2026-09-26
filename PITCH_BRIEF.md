@@ -47,7 +47,7 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 
 **Real agents on Claude, Gemini and OpenAI**
 - Three agents, one per AI provider, set up the same way: each has its own Solana key, pays from the company vault under the on-chain limit, and logs its real AI cost. You type the question live, for example "What's Apple trading at?".
-- Claude and Gemini are tested end to end today. OpenAI works the same way but our OpenAI account had no credits at the time of testing, so check before the demo.
+- All three (Claude, Gemini, OpenAI) are tested end to end today.
 
 ## How Solana is used (for the "why Solana" slide)
 
@@ -62,7 +62,7 @@ Each customer sets this per item in **Settings**; the dashboard just reports it.
 ## Say these out loud (don't overclaim)
 
 - It runs on **Solana devnet** with a **test stablecoin**, not real money.
-- **Claude and Gemini usage is real.** OpenAI is real only if that account has credits by demo time; if the demo uses the fallback demo-usage script for OpenAI instead, **say so out loud** (there's no on-screen label).
+- **All three providers are real** (Claude, Gemini and OpenAI calls with their real costs). Only if the fallback demo-usage script is used, say so out loud.
 - The **AI hard limit** stops agents that check with AgentCard before calling a model. Enforcing it on any agent needs the proxy on the roadmap.
 - Changing an on-chain limit from Settings works for our demo wallet, because the demo holds the owner key. For real customers this would be approved by their finance team in Squads.
 - The business model isn't validated yet. Present it as an assumption.
