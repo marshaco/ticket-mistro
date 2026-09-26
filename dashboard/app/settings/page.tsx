@@ -109,7 +109,7 @@ export default function SettingsPage() {
                 <SettingsRow
                   key={`${c.provider}-${c.mode}-${c.limit}-${c.target}-${c.expires}`}
                   item={c}
-                  title={`AI credits · ${c.provider}${c.simulated ? " (simulated usage)" : ""}`}
+                  title={`AI credits · ${c.provider}`}
                   subtitle={`Model usage across your agents on ${c.provider}. Credit grant: $${c.grantUsd}.`}
                   limitHelp="Agents check this before every model call and stop when it's reached."
                   targetHelp="Tracking only: how much of your credits you still want to use before they expire."

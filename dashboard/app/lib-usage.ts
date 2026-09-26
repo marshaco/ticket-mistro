@@ -12,6 +12,7 @@ export type UsageEntry = {
   taskId: string;
   provider: string;
   agent: string;
+  agentPublicKey?: string; // the agent's Solana public key (matched to Settings → Agents)
   model: string;
   inputTokens: number;
   outputTokens: number;

@@ -324,7 +324,7 @@ export default function Home() {
                   <TrackCard
                     key={`${c.provider}-${c.mode}-${c.limit}-${c.target}-${c.expires}`}
                     item={c}
-                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}${c.simulated ? " · SIMULATED" : ""}`}
+                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}`}
                     limitNote={`Hard limit · agents stop calling the model (grant $${c.grantUsd})`}
                     footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
                     now={now}

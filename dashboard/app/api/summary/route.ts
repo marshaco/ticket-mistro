@@ -144,7 +144,10 @@ async function build(): Promise<Summary> {
   }
 
   // AI credit usage is reported off-chain by agents (agent/credits.ts, or POST /api/usage)
-  const usage = readUsage().filter((u) => u.time / 1000 >= since);
+  const usage = readUsage()
+    .filter((u) => u.time / 1000 >= since)
+    // name each model call by its agent's public key, as set in Settings → Agents
+    .map((u) => (u.agentPublicKey && agentNames.has(u.agentPublicKey) ? { ...u, agent: agentNames.get(u.agentPublicKey)! } : u));
   const providerCfg = readProviders();
   const providerNames = [...new Set([...Object.keys(providerCfg), ...usage.map((u) => u.provider)])];
   const onChainLimit = limit ? Number(limit.amount.toString()) : 0;
@@ -177,7 +180,7 @@ async function build(): Promise<Summary> {
   for (const p of payments) {
     const r = row(/^task:([^|]+)/.exec(p.memo)?.[1] ?? p.memo);
     const who = p.agentName ?? `${p.agent.slice(0, 4)}...${p.agent.slice(-4)}`;
-    if (!r.agents.includes(`${who} (on-chain)`)) r.agents.unshift(`${who} (on-chain)`);
+    if (!r.agents.includes(who)) r.agents.unshift(who);
     if (p.status === "paid") r.purchases += p.amount;
     else r.blocked += 1;
     r.lastTime = Math.max(r.lastTime, p.blockTime);
@@ -185,7 +188,7 @@ async function build(): Promise<Summary> {
   for (const u of usage) {
     const r = row(u.taskId);
     r.aiUsd += u.usd;
-    if (!r.agents.includes(`${u.agent} (${u.provider})`)) r.agents.push(`${u.agent} (${u.provider})`);
+    if (!r.agents.includes(u.agent)) r.agents.push(u.agent);
     r.lastTime = Math.max(r.lastTime, Math.floor(u.time / 1000));
   }
 
