@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import { Connection, Keypair, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 dotenv.config();
 
 export type PayParams = {
@@ -37,24 +37,68 @@ export async function payAsAgent(params: PayParams): Promise<PayResult> {
   }
 
   // NOTE: Per CLAUDE.md we MUST use Squads on-chain spendingLimitUse.
-  // The @sqds/multisig SDK must be consulted for the exact method/signature.
-  // Since dependencies may not yet be installed in this workspace, we won't
-  // attempt to call the SDK here blindly. Instead, provide a clear error
-  // directing the developer to install deps and verify the API.
+  // The @sqds/multisig SDK exposes `rpc.spendingLimitUse` which we can call
+  // to perform an on-chain spending-limit transfer from the vault PDA. We'll
+  // dynamically import the SDK and call that function. Required env vars:
+  // - MULTISIG_ADDRESS (multisig PDA)
+  // - SPENDING_LIMIT_ADDRESS (the spending limit account public key)
+  // - VAULT_INDEX (typically 0)
+
+  const multisigAddr = process.env.MULTISIG_ADDRESS;
+  const spendingLimitAddr = process.env.SPENDING_LIMIT_ADDRESS;
+  const vaultIndex = parseInt(process.env.VAULT_INDEX || '0', 10);
+
+  if (!multisigAddr || !spendingLimitAddr) {
+    return { ok: false, reason: 'ERROR', detail: 'MULTISIG_ADDRESS or SPENDING_LIMIT_ADDRESS not set in .env' };
+  }
 
   try {
-    // Try dynamic import so that a missing package yields a clear error.
-    // The real implementation should call the Squads SDK spending-limit use
-    // helper which constructs and signs a transaction from the vault PDA.
-    // Example (pseudocode):
-    // const { spendingLimitUse } = await import('@sqds/multisig');
-    // const tx = await spendingLimitUse({ multisig: MULTISIG_ADDRESS, vaultIndex: 0, ... });
-    // const signature = await sendAndConfirmTransaction(connection, tx, [agent]);
+    const sq = await import('@sqds/multisig');
+    const { rpc } = sq;
 
-    await import('@sqds/multisig');
-    return { ok: false, reason: 'ERROR', detail: 'Squads SDK present but payAsAgent not implemented. Implement spendingLimitUse call here.' };
+    const multisigPda = new PublicKey(multisigAddr);
+    const spendingLimit = new PublicKey(spendingLimitAddr);
+    const destination = new PublicKey(params.to);
+
+    // If a token mint is set, fetch decimals; otherwise for SOL set decimals = 9
+    let decimals = 9;
+    const tokenMint = process.env.TOKEN_MINT;
+    if (tokenMint) {
+      const mintPub = new PublicKey(tokenMint);
+      const { getMint } = await import('@solana/spl-token');
+      const mintInfo = await getMint(new Connection(process.env.RPC_URL!, 'confirmed'), mintPub);
+      decimals = mintInfo.decimals;
+    }
+
+    // Use agent as feePayer and member signer (agent must be a multisig member)
+    const feePayer = agent;
+    const member = agent;
+
+    try {
+      const signature = await rpc.spendingLimitUse({
+        connection,
+        feePayer,
+        member,
+        multisigPda,
+        spendingLimit,
+        mint: tokenMint ? new PublicKey(tokenMint) : undefined,
+        vaultIndex,
+        amount: params.amount,
+        decimals,
+        destination,
+        memo: `task:${params.taskId}|req:${params.requestId}`,
+      });
+
+      return { ok: true, signature };
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (msg.toLowerCase().includes('limit')) {
+        return { ok: false, reason: 'LIMIT_EXCEEDED', detail: msg };
+      }
+      return { ok: false, reason: 'ERROR', detail: msg };
+    }
   } catch (e: any) {
-    return { ok: false, reason: 'ERROR', detail: 'Missing or unverified @sqds/multisig SDK. Run `npm install` and verify the SDK API before implementing payAsAgent.' };
+    return { ok: false, reason: 'ERROR', detail: `Failed to import @sqds/multisig: ${e.message}` };
   }
 }
 
