@@ -1,7 +1,16 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  TransactionInstruction,
+  sendAndConfirmTransaction,
+} from '@solana/web3.js';
+import { getMint } from '@solana/spl-token';
+import * as multisig from '@sqds/multisig';
 dotenv.config();
 
 export type PayParams = {
@@ -16,19 +25,26 @@ export type PayResult =
   | { ok: true; signature: string }
   | { ok: false; reason: 'LIMIT_EXCEEDED' | 'ERROR'; detail?: string };
 
+const MEMO_PROGRAM_ID = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
+const SPENDING_LIMIT_EXCEEDED_CODE = 6026; // Squads v4 SpendingLimitExceeded (0x178a)
+
 function loadKeypairFromFile(p: string): Keypair {
   const raw = fs.readFileSync(path.resolve(p), 'utf8');
-  const arr = JSON.parse(raw) as number[];
-  return Keypair.fromSecretKey(Uint8Array.from(arr));
+  return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(raw) as number[]));
 }
 
+let cachedDecimals: number | undefined;
+
+// Pays `amount` of TOKEN_MINT from the Squads vault to `to` via the agent's on-chain
+// spending limit. Squads rejects the transfer on-chain if it would exceed the limit.
 export async function payAsAgent(params: PayParams): Promise<PayResult> {
-  const rpc = process.env.RPC_URL;
-  if (!rpc) return { ok: false, reason: 'ERROR', detail: 'RPC_URL not set' };
+  const { RPC_URL, MULTISIG_ADDRESS, SPENDING_LIMIT_ADDRESS, TOKEN_MINT } = process.env;
+  if (!RPC_URL || !MULTISIG_ADDRESS || !SPENDING_LIMIT_ADDRESS || !TOKEN_MINT) {
+    return { ok: false, reason: 'ERROR', detail: 'RPC_URL, MULTISIG_ADDRESS, SPENDING_LIMIT_ADDRESS, TOKEN_MINT must be set (run scripts/setup.ts)' };
+  }
+  const vaultIndex = parseInt(process.env.VAULT_INDEX || '0', 10);
+  const connection = new Connection(RPC_URL, 'confirmed');
 
-  const connection = new Connection(rpc, 'confirmed');
-
-  // load agent keypair
   let agent: Keypair;
   try {
     agent = loadKeypairFromFile(params.agentKeypairPath);
@@ -36,69 +52,35 @@ export async function payAsAgent(params: PayParams): Promise<PayResult> {
     return { ok: false, reason: 'ERROR', detail: `Failed to load agent keypair: ${err.message}` };
   }
 
-  // NOTE: Per CLAUDE.md we MUST use Squads on-chain spendingLimitUse.
-  // The @sqds/multisig SDK exposes `rpc.spendingLimitUse` which we can call
-  // to perform an on-chain spending-limit transfer from the vault PDA. We'll
-  // dynamically import the SDK and call that function. Required env vars:
-  // - MULTISIG_ADDRESS (multisig PDA)
-  // - SPENDING_LIMIT_ADDRESS (the spending limit account public key)
-  // - VAULT_INDEX (typically 0)
-
-  const multisigAddr = process.env.MULTISIG_ADDRESS;
-  const spendingLimitAddr = process.env.SPENDING_LIMIT_ADDRESS;
-  const vaultIndex = parseInt(process.env.VAULT_INDEX || '0', 10);
-
-  if (!multisigAddr || !spendingLimitAddr) {
-    return { ok: false, reason: 'ERROR', detail: 'MULTISIG_ADDRESS or SPENDING_LIMIT_ADDRESS not set in .env' };
-  }
-
   try {
-    const sq = await import('@sqds/multisig');
-    const { rpc } = sq;
+    const mint = new PublicKey(TOKEN_MINT);
+    if (cachedDecimals === undefined) cachedDecimals = (await getMint(connection, mint)).decimals;
+    const memo = `task:${params.taskId}|req:${params.requestId}`;
 
-    const multisigPda = new PublicKey(multisigAddr);
-    const spendingLimit = new PublicKey(spendingLimitAddr);
-    const destination = new PublicKey(params.to);
-
-    // If a token mint is set, fetch decimals; otherwise for SOL set decimals = 9
-    let decimals = 9;
-    const tokenMint = process.env.TOKEN_MINT;
-    if (tokenMint) {
-      const mintPub = new PublicKey(tokenMint);
-      const { getMint } = await import('@solana/spl-token');
-      const mintInfo = await getMint(new Connection(process.env.RPC_URL!, 'confirmed'), mintPub);
-      decimals = mintInfo.decimals;
-    }
-
-    // Use agent as feePayer and member signer (agent must be a multisig member)
-    const feePayer = agent;
-    const member = agent;
-
-    try {
-      const signature = await rpc.spendingLimitUse({
-        connection,
-        feePayer,
-        member,
-        multisigPda,
-        spendingLimit,
-        mint: tokenMint ? new PublicKey(tokenMint) : undefined,
+    const tx = new Transaction().add(
+      multisig.instructions.spendingLimitUse({
+        multisigPda: new PublicKey(MULTISIG_ADDRESS),
+        member: agent.publicKey,
+        spendingLimit: new PublicKey(SPENDING_LIMIT_ADDRESS),
+        mint,
         vaultIndex,
         amount: params.amount,
-        decimals,
-        destination,
-        memo: `task:${params.taskId}|req:${params.requestId}`,
-      });
+        decimals: cachedDecimals,
+        destination: new PublicKey(params.to),
+        memo,
+      }),
+      // SPL Memo so the tag shows up in getSignaturesForAddress / explorers
+      new TransactionInstruction({ programId: MEMO_PROGRAM_ID, keys: [], data: Buffer.from(memo, 'utf8') })
+    );
 
-      return { ok: true, signature };
-    } catch (err: any) {
-      const msg = String(err?.message || err);
-      if (msg.toLowerCase().includes('limit')) {
-        return { ok: false, reason: 'LIMIT_EXCEEDED', detail: msg };
-      }
-      return { ok: false, reason: 'ERROR', detail: msg };
-    }
-  } catch (e: any) {
-    return { ok: false, reason: 'ERROR', detail: `Failed to import @sqds/multisig: ${e.message}` };
+    const signature = await sendAndConfirmTransaction(connection, tx, [agent], { commitment: 'confirmed' });
+    return { ok: true, signature };
+  } catch (err: any) {
+    const detail = [err?.message, ...(err?.logs ?? [])].join('\n');
+    const limitHit =
+      detail.includes('SpendingLimitExceeded') ||
+      detail.includes(`0x${SPENDING_LIMIT_EXCEEDED_CODE.toString(16)}`);
+    return { ok: false, reason: limitHit ? 'LIMIT_EXCEEDED' : 'ERROR', detail };
   }
 }
 
