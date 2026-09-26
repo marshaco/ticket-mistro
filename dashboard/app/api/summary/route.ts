@@ -1,5 +1,6 @@
 // Live AgentCard data from Solana devnet. Read-only: needs no keypairs.
 // Env (repo-root .env): RPC_URL, VAULT_ADDRESS, TOKEN_MINT, SPENDING_LIMIT_ADDRESS.
+import { readProviders, readUsage } from "../../lib-usage";
 import path from "path";
 import { Connection, PublicKey } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
@@ -14,8 +15,25 @@ export type LivePayment = {
   errorCode: number | null; // Squads custom error, 6026 = spending limit exceeded
 };
 
+export type Credits = {
+  provider: string;
+  simulated: boolean; // true if any usage for this provider came from the demo simulator
+  agents: string[];
+  grantUsd: number;
+  hardCapUsd: number; // hard limit: the agent stops calling the model at this point
+  minTargetUsd: number; // soft minimum: tracking only, how much should be used before expiry
+  expires: string; // ISO date
+  usedUsd: number;
+  calls: number;
+};
+
+export type TaskRow = { taskId: string; agents: string[]; purchases: number; blocked: number; aiUsd: number; lastTime: number };
+
 export type Summary = {
   mode: "live";
+  purchaseMinTarget: number; // soft minimum for agent purchases per day (tracking only)
+  credits: Credits[]; // one per AI provider
+  tasks: TaskRow[];
   vault: string;
   vaultBalance: number | null;
   limit: { amount: number; remaining: number; resetsAt: number } | { frozen: true };
@@ -103,9 +121,48 @@ async function build(): Promise<Summary> {
     };
   }
 
+  // AI credit usage is reported off-chain by agents (agent/credits.ts, or POST /api/usage)
+  const usage = readUsage();
+  const providerCfg = readProviders();
+  const providerNames = [...new Set([...Object.keys(providerCfg), ...usage.map((u) => u.provider)])];
+  const credits: Credits[] = providerNames.map((provider) => {
+    const cfg = providerCfg[provider] ?? { grantUsd: 0, hardCapUsd: 0, minTargetUsd: 0, expires: "" };
+    const mine = usage.filter((u) => u.provider === provider);
+    return {
+      provider,
+      simulated: mine.some((u) => u.simulated),
+      agents: [...new Set(mine.map((u) => u.agent))],
+      ...cfg,
+      usedUsd: mine.reduce((sum, e) => sum + e.usd, 0),
+      calls: mine.length,
+    };
+  });
+
+  // Per task: on-chain purchases (paid amount, blocked count) + off-chain AI cost
+  const tasks = new Map<string, TaskRow>();
+  const row = (taskId: string) => {
+    if (!tasks.has(taskId)) tasks.set(taskId, { taskId, agents: [], purchases: 0, blocked: 0, aiUsd: 0, lastTime: 0 });
+    return tasks.get(taskId)!;
+  };
+  for (const p of payments) {
+    const r = row(/^task:([^|]+)/.exec(p.memo)?.[1] ?? p.memo);
+    if (p.status === "paid") r.purchases += p.amount;
+    else r.blocked += 1;
+    r.lastTime = Math.max(r.lastTime, p.blockTime);
+  }
+  for (const u of usage) {
+    const r = row(u.taskId);
+    r.aiUsd += u.usd;
+    if (!r.agents.includes(`${u.agent} (${u.provider})`)) r.agents.push(`${u.agent} (${u.provider})`);
+    r.lastTime = Math.max(r.lastTime, Math.floor(u.time / 1000));
+  }
+
   const ata = balance.value[0]?.account.data.parsed?.info?.tokenAmount?.amount;
   return {
     mode: "live",
+    purchaseMinTarget: Number(process.env.PURCHASE_MIN_TARGET || 60),
+    credits,
+    tasks: [...tasks.values()].sort((a, b) => b.lastTime - a.lastTime).slice(0, 8),
     vault: VAULT_ADDRESS,
     vaultBalance: ata === undefined ? null : Number(ata),
     limit: limitInfo,

@@ -236,3 +236,18 @@ tbody tr.row-blocked { background: #2a1b17; box-shadow: inset 3px 0 0 var(--red)
 tbody tr.row-blocked:hover { background: #33201b; }
 tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
 .blocked-tag { margin-left: 8px; padding: 2px 6px; border: 1px solid #c85f49; border-radius: 3px; color: #ff907b; font-family: Consolas, monospace; font-size: 8px; letter-spacing: .5px; }
+
+/* Limits & targets: hard limits (block) vs soft minimums (tracking only) */
+.limits-section { margin-top: 28px; }
+.limits-title { margin: 6px 0 14px; color: var(--muted, #9aa396); font-size: 13px; font-weight: 500; }
+.limits-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.limit-card { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; }
+.limit-used { margin-top: 2px; }
+.limit-row-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 7px; color: #9aa396; font-size: 10px; }
+.limit-row-head b { color: #e7ebdf; font-family: Consolas, monospace; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.limit-row-head b.target-met { color: #b8f26b; }
+.limit-row-head b.target-open { color: #f2c46b; }
+.target-meter .target-fill { background: #6b9cf2; }
+.limit-foot { color: #737d70; font-family: Consolas, monospace; font-size: 9px; letter-spacing: .4px; }
+.task-frame { margin-top: 14px; }
+@media (max-width: 900px) { .limits-grid { grid-template-columns: 1fr; } }

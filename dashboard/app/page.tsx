@@ -112,6 +112,43 @@ function formatCountdown(seconds: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
 }
 
+function LimitCard(props: {
+  kicker: string;
+  unit: string;
+  decimals: number;
+  used: number;
+  hardLimit: number;
+  hardLabel: string;
+  target: number;
+  targetLabel: string;
+  footnote: string;
+}) {
+  const { kicker, unit, decimals, used, hardLimit, hardLabel, target, targetLabel, footnote } = props;
+  const fmt = (n: number) => `${unit}${n.toFixed(decimals)}`;
+  const hardPct = hardLimit > 0 ? Math.min((used / hardLimit) * 100, 100) : 100;
+  const hardState = hardPct >= 100 ? "over" : hardPct >= 80 ? "warning" : "healthy";
+  const targetPct = target > 0 ? Math.min((used / target) * 100, 100) : 100;
+  const toGo = Math.max(0, target - used);
+  return (
+    <article className="budget-panel limit-card">
+      <div className="section-label">{kicker}</div>
+      <div className="big-amount limit-used">{fmt(used)}<span> <small>used</small></span></div>
+
+      <div className="limit-row">
+        <div className="limit-row-head"><span>{hardLabel}</span><b>{hardPct >= 100 ? "LIMIT REACHED" : `${fmt(Math.max(0, hardLimit - used))} left of ${fmt(hardLimit)}`}</b></div>
+        <div className="budget-meter"><div className={`budget-meter-fill ${hardState}`} style={{ width: `${hardPct}%` }} /></div>
+      </div>
+
+      <div className="limit-row">
+        <div className="limit-row-head"><span>{targetLabel}</span><b className={toGo === 0 ? "target-met" : "target-open"}>{toGo === 0 ? "TARGET MET" : `${fmt(toGo)} still to use of ${fmt(target)}`}</b></div>
+        <div className="budget-meter target-meter"><div className="budget-meter-fill target-fill" style={{ width: `${targetPct}%` }} /></div>
+      </div>
+
+      <div className="limit-foot">{footnote}</div>
+    </article>
+  );
+}
+
 const POLL_MS = 5000;
 
 export default function Home() {
@@ -167,6 +204,9 @@ export default function Home() {
   const blockedCount = payments.filter((p) => p.status === "blocked").length;
   const latestBlocked = payments.find((p) => p.status === "blocked");
   const vaultShort = isLive ? shortAddress(live.vault) : "8rT2...vA7k";
+  const purchaseTarget = isLive ? live.purchaseMinTarget : 0;
+  const credits = isLive ? live.credits : null;
+  const daysLeft = (expires: string) => Math.max(0, Math.ceil((Date.parse(expires) - now) / 86_400_000));
   const updatedAgo = isLive ? Math.max(0, Math.round((now - live.updatedAt) / 1000)) : null;
 
   return (
@@ -259,6 +299,67 @@ export default function Home() {
               </div>
             </article>
           </section>
+
+          {isLive && credits && (
+            <section className="limits-section" aria-labelledby="limits-title">
+              <div className="section-label"><span className="label-mark budget-mark" /> LIMITS &amp; TARGETS</div>
+              <h2 id="limits-title" className="limits-title">Hard limits block spend. Soft minimums track what should be used.</h2>
+              <div className="limits-grid">
+                <LimitCard
+                  kicker="AGENT PURCHASES · TODAY"
+                  unit="$"
+                  decimals={2}
+                  used={spentToday}
+                  hardLimit={limitAmount}
+                  hardLabel="Hard limit · enforced on-chain by Squads"
+                  target={purchaseTarget}
+                  targetLabel="Soft minimum · daily target"
+                  footnote={`${blockedCount} payment${blockedCount === 1 ? "" : "s"} rejected on-chain`}
+                />
+                {credits.map((c) => (
+                  <LimitCard
+                    key={c.provider}
+                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}${c.simulated ? " · SIMULATED" : ""}`}
+                    unit="$"
+                    decimals={4}
+                    used={c.usedUsd}
+                    hardLimit={c.hardCapUsd}
+                    hardLabel={`Hard cap · agents stop calling the model (grant $${c.grantUsd})`}
+                    target={c.minTargetUsd}
+                    targetLabel={`Soft minimum · use before ${c.expires} (${daysLeft(c.expires)} days)`}
+                    footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
+                  />
+                ))}
+              </div>
+
+              <div className="table-frame task-frame">
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">TASK</th>
+                        <th scope="col">AGENT · AI PROVIDER</th>
+                        <th scope="col">PURCHASES (ON-CHAIN)</th>
+                        <th scope="col">BLOCKED</th>
+                        <th scope="col">AI COST</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {live.tasks.map((t) => (
+                        <tr key={t.taskId} className={t.blocked > 0 ? "row-blocked" : undefined}>
+                          <td><span className="task-label">{t.taskId}</span></td>
+                          <td><span className="time-sub">{t.agents.length ? t.agents.join(", ") : "—"}</span></td>
+                          <td><span className="amount-main">${formatAmount(t.purchases)}</span></td>
+                          <td>{t.blocked > 0 ? <span className="blocked-tag">{t.blocked} BLOCKED</span> : <span className="time-sub">—</span>}</td>
+                          <td><span className="amount-main">{t.aiUsd > 0 ? `$${t.aiUsd.toFixed(4)}` : "—"}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="payments-section" id="payments" aria-labelledby="payments-title">
             <div className="payments-heading">
