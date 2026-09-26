@@ -40,7 +40,7 @@ export type TaskRow = { taskId: string; agents: string[]; purchases: number; blo
 export type Summary = {
   mode: "live";
   wallet: { multisig: string | null; connected: boolean; agents: string[] };
-  agents: { name: string; publicKey: string }[]; // from Settings; empty = track every agent
+  agents: { name: string; publicKey: string; provider: string }[]; // from Settings; empty = track every agent
   purchases: Tracked; // agent purchases today; limit mode = the on-chain Squads limit
   credits: Credits[]; // one per AI provider
   tasks: TaskRow[];
@@ -86,7 +86,7 @@ async function loadTx(connection: Connection, signature: string) {
 async function build(): Promise<Summary> {
   // Track the customer's connected wallet (Settings), else the demo wallet from .env
   const { wallet, agents: agentList = [] } = readSettings();
-  const agentNames = new Map(agentList.map((a) => [a.publicKey, a.name]));
+  const agentNames = new Map(agentList.map((a) => [a.publicKey, `${a.name} · ${a.provider === "Anthropic" ? "Claude" : a.provider}`]));
   const RPC_URL = process.env.RPC_URL;
   const VAULT_ADDRESS = wallet?.vault ?? process.env.VAULT_ADDRESS;
   const TOKEN_MINT = wallet?.mint ?? process.env.TOKEN_MINT;

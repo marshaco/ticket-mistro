@@ -263,12 +263,12 @@ function WalletRow({ summary, onSaved }: { summary: Summary; onSaved: () => void
 function AgentsRow({ summary, onSaved }: { summary: Summary; onSaved: () => void }) {
   const initial = summary.agents.length
     ? summary.agents
-    : summary.wallet.agents.map((publicKey, i) => ({ name: `Agent ${i + 1}`, publicKey })); // prefill from the connected wallet
-  const [rows, setRows] = useState(initial.length ? initial : [{ name: "", publicKey: "" }]);
+    : summary.wallet.agents.map((publicKey, i) => ({ name: `Agent ${i + 1}`, publicKey, provider: "Anthropic" })); // prefill from the connected wallet
+  const [rows, setRows] = useState(initial.length ? initial : [{ name: "", publicKey: "", provider: "Anthropic" }]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(summary.agents.length === 0 && initial.length ? "Found on your wallet's spending limit: name them and save." : null);
 
-  const update = (i: number, field: "name" | "publicKey", value: string) =>
+  const update = (i: number, field: "name" | "publicKey" | "provider", value: string) =>
     setRows((r) => r.map((row, j) => (j === i ? { ...row, [field]: value } : row)));
 
   const save = async () => {
@@ -290,19 +290,24 @@ function AgentsRow({ summary, onSaved }: { summary: Summary; onSaved: () => void
     <section className="budget-panel settings-row">
       <div className="settings-head">
         <h2>Agents</h2>
-        <p>Paste the public key each AI agent pays from and give it a name. The dashboard tracks these agents&apos; purchases and AI usage under that name. Leave empty to track every agent on the wallet.</p>
+        <p>For each AI agent (Claude, OpenAI or Gemini), paste the public key it pays from and give it a name. The dashboard tracks these agents&apos; purchases and AI usage under that name. Leave empty to track every agent on the wallet.</p>
       </div>
       <div className="agent-rows">
         {rows.map((row, i) => (
           <div className="settings-fields agent-row" key={i}>
             <input className="agent-name" placeholder="Name, e.g. Research agent" value={row.name} onChange={(e) => update(i, "name", e.target.value)} />
+            <select className="agent-provider" value={row.provider} onChange={(e) => update(i, "provider", e.target.value)} aria-label="AI the agent runs on">
+              <option value="Anthropic">Claude</option>
+              <option value="OpenAI">OpenAI</option>
+              <option value="Google Gemini">Gemini</option>
+            </select>
             <input className="wallet-input" placeholder="Agent public key" value={row.publicKey} onChange={(e) => update(i, "publicKey", e.target.value)} />
             <button type="button" className="save-btn" onClick={() => setRows((r) => r.filter((_, j) => j !== i))}>Remove</button>
           </div>
         ))}
       </div>
       <div className="settings-actions">
-        <button type="button" className="save-btn" onClick={() => setRows((r) => [...r, { name: "", publicKey: "" }])}>+ Add agent</button>
+        <button type="button" className="save-btn" onClick={() => setRows((r) => [...r, { name: "", publicKey: "", provider: "Anthropic" }])}>+ Add agent</button>
         <button type="button" className="save-btn" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save agents"}</button>
         {msg && <span className="limit-msg">{msg}</span>}
       </div>

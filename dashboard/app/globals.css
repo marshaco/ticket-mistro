@@ -299,3 +299,5 @@ tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
 .agent-rows { display: grid; gap: 8px; }
 .agent-row { margin-top: 0; }
 .settings-fields input.agent-name { width: 190px; }
+
+.agent-provider { padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: #141813; color: #e7ebdf; font: 12px Consolas, monospace; }

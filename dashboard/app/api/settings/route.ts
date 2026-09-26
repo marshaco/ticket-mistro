@@ -29,7 +29,7 @@ export async function PUT(request: Request) {
       const key = String(a?.publicKey ?? "").trim();
       if (!name || !key) continue;
       try {
-        agents.push({ name, publicKey: new PublicKey(key).toBase58() });
+        agents.push({ name, publicKey: new PublicKey(key).toBase58(), provider: String(a?.provider || "Anthropic") });
       } catch {
         return Response.json({ error: `"${key}" isn't a valid Solana public key` }, { status: 400 });
       }

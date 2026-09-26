@@ -55,7 +55,7 @@ export type TrackSetting = { mode: Mode; limit: number; target: number; expires?
 // The customer's connected Squads wallet (discovered on-chain from the multisig address).
 export type Wallet = { multisig: string; vault: string; spendingLimit: string; mint: string; agents: string[]; limits: number };
 // The customer's agents: a name + the Solana public key the agent pays from.
-export type AgentEntry = { name: string; publicKey: string };
+export type AgentEntry = { name: string; publicKey: string; provider: string }; // provider: the AI the agent runs on
 export type Settings = { purchases: TrackSetting; providers: Record<string, TrackSetting>; wallet?: Wallet; agents?: AgentEntry[] };
 
 const SETTINGS = path.resolve(ROOT, "data/tracking-settings.json");
