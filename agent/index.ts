@@ -12,7 +12,7 @@ const PAID_API_URL = process.env.PAID_API_URL || "http://localhost:3001";
 
 const tools = [{
   name: "buy_data",
-  description: "Fetch paid data from the API. Handles payment automatically if the API requires it.",
+  description: "Fetch paid data from the API. Handles payment automatically if the API requires it. Endpoints: /weather?city=<city> (10 tokens), /stock-quote?symbol=<ticker> (20 tokens), /trivia (5 tokens). Pass the full URL.",
   input_schema: {
     type: "object" as const,
     properties: {
@@ -26,7 +26,7 @@ async function run() {
   const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: `What's the current weather in Dublin? Use buy_data on ${PAID_API_URL}/weather to get it.` }
+    { role: "user", content: `What's the current weather in Dublin? The paid data API is at ${PAID_API_URL}; use buy_data to get it.` }
   ];
 
   let response = await anthropic.messages.create({
