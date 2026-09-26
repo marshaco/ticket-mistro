@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "ts-node": "ts-node"
+    "ts-node": "ts-node",
+    "paid-api": "tsx paid-api/index.ts",
+    "agent": "tsx agent/index.ts"
   },
   "engines": {
     "node": ">=20"
