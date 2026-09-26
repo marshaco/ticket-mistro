@@ -1,34 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgentCard Dashboard
 
-## Getting Started
+Read-only, desktop-first treasury dashboard for the AgentCard Solana devnet demo. The current Phase 1 page uses mock transactions, a mock daily budget, and a clearly labeled simulated blocked-payment event.
 
-First, run the development server:
+## Requirements
 
-```bash
+- Node.js 20 or newer
+- npm
+
+## Run locally
+
+From the repository root in PowerShell:
+
+```powershell
+cd dashboard
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The dashboard runs without a root `.env` file, RPC access, wallet keys, or signing. It is designed for desktop-width screens (minimum canvas width: 1100px).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Verify and run a production build
 
-## Learn More
+From the `dashboard` directory:
 
-To learn more about Next.js, take a look at the following resources:
+```powershell
+npm run lint
+npm run build
+npm run start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm run start` serves the most recent production build at [http://localhost:3000](http://localhost:3000).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Phase 1 data
 
-## Deploy on Vercel
+Mock payments and the daily budget are defined in `app/page.tsx`. Task labels are parsed from the shared memo format `task:<taskId>|req:<requestId>`; an unrecognized memo is displayed as-is. Explorer links use the Solana devnet cluster and the displayed signatures are mock data, so they are not expected to resolve to real transactions.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The dashboard does not read `.env` yet. Real devnet history, vault configuration, and detection of failed Squads spending-limit transactions are Phase 2 work and must be added only after the transaction shape is confirmed with the wallet-service owner.
