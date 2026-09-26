@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Summary } from "./api/summary/route";
 
@@ -118,95 +119,35 @@ function money(n: number) {
   return `$${n.toFixed(n !== 0 && Math.abs(n) < 1 ? 4 : 2)}`;
 }
 
-// One tracked thing. The user toggles between a hard limit (blocks spend) and a spend target
-// (tracking only) and sets the amount; Save persists it via PUT /api/settings.
-function TrackCard(props: {
-  item: TrackedView;
-  kicker: string;
-  limitNote: string; // what enforces the hard limit
-  footnote: string;
-  now: number;
-  onSaved: () => void;
-}) {
-  const { item, kicker, limitNote, footnote, now, onSaved } = props;
-  const [mode, setMode] = useState(item.mode);
-  const [amount, setAmount] = useState(String(item.mode === "limit" ? item.limit : item.target));
-  const [expires, setExpires] = useState(item.expires ?? "");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  const switchMode = (m: "limit" | "target") => {
-    setMode(m);
-    setAmount(String(m === "limit" ? item.limit : item.target));
-  };
-
-  const save = async () => {
-    setSaving(true);
-    setMsg(item.key === "purchases" && mode === "limit" ? "Updating the limit on Solana…" : null);
-    try {
-      const body: Record<string, unknown> = { key: item.key, mode };
-      body[mode] = Number(amount);
-      if (expires) body.expires = expires;
-      const res = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const out = await res.json();
-      if (!res.ok) throw new Error(out.error ?? res.statusText);
-      setMsg(out.signature ? "Saved · limit updated on-chain" : "Saved");
-      onSaved();
-    } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const value = Number(amount) || 0;
-  const savedValue = mode === "limit" ? item.limit : item.target;
-  const pct = savedValue > 0 ? Math.min((item.used / savedValue) * 100, 100) : 100;
-  const state = mode === "limit" ? (pct >= 100 ? "over" : pct >= 80 ? "warning" : "healthy") : "target-fill";
-  const status =
-    mode === "limit"
-      ? pct >= 100 ? "LIMIT REACHED" : `${money(Math.max(0, savedValue - item.used))} left of ${money(savedValue)}`
-      : item.used >= savedValue ? "TARGET MET" : `${money(savedValue - item.used)} still to spend of ${money(savedValue)}`;
+// One tracked thing, read-only: shows whatever the customer configured on the Settings page.
+function TrackCard(props: { item: TrackedView; kicker: string; limitNote: string; footnote: string; now: number }) {
+  const { item, kicker, limitNote, footnote, now } = props;
+  const isLimit = item.mode === "limit";
+  const goal = isLimit ? item.limit : item.target;
+  const pct = goal > 0 ? Math.min((item.used / goal) * 100, 100) : 100;
+  const state = isLimit ? (pct >= 100 ? "over" : pct >= 80 ? "warning" : "healthy") : "target-fill";
   const days = item.expires ? Math.max(0, Math.ceil((Date.parse(item.expires) - now) / 86_400_000)) : null;
-  const dirty = mode !== item.mode || value !== savedValue || (expires || "") !== (item.expires ?? "");
+  const status = isLimit
+    ? pct >= 100 ? "LIMIT REACHED" : `${money(Math.max(0, goal - item.used))} left of ${money(goal)}`
+    : item.used >= goal ? "TARGET MET" : `${money(goal - item.used)} still to spend of ${money(goal)}`;
 
   return (
     <article className="budget-panel limit-card">
       <div className="limit-card-top">
         <div className="section-label">{kicker}</div>
-        <div className="mode-toggle" role="group" aria-label="What to track">
-          <button type="button" className={mode === "limit" ? "on" : ""} onClick={() => switchMode("limit")}>Hard limit</button>
-          <button type="button" className={mode === "target" ? "on" : ""} onClick={() => switchMode("target")}>Spend target</button>
-        </div>
+        <span className={`mode-chip ${isLimit ? "chip-limit" : "chip-target"}`}>{isLimit ? "HARD LIMIT" : "SPEND TARGET"}</span>
       </div>
-
       <div className="big-amount limit-used">{money(item.used)}<span> <small>{item.key === "purchases" ? "spent today" : "used"}</small></span></div>
-
       <div className="limit-row">
         <div className="limit-row-head">
-          <span>{mode === "limit" ? limitNote : `Spend target${days !== null ? ` · ${days} days left` : ""} · tracking only, never blocks`}</span>
-          <b className={mode === "target" ? (item.used >= savedValue ? "target-met" : "target-open") : ""}>{mode === item.mode ? status : "not saved yet"}</b>
+          <span>{isLimit ? limitNote : `Tracking only, never blocks${days !== null && item.key !== "purchases" ? ` · ${days} days left` : ""}`}</span>
+          <b className={isLimit ? "" : item.used >= goal ? "target-met" : "target-open"}>{status}</b>
         </div>
-        <div className={`budget-meter ${mode === "target" ? "target-meter" : ""}`}>
-          <div className={`budget-meter-fill ${state}`} style={{ width: `${mode === item.mode ? pct : 0}%` }} />
+        <div className={`budget-meter ${isLimit ? "" : "target-meter"}`}>
+          <div className={`budget-meter-fill ${state}`} style={{ width: `${pct}%` }} />
         </div>
       </div>
-
-      <div className="limit-edit">
-        <label>
-          {mode === "limit" ? (item.key === "purchases" ? "Daily limit" : "Limit") : item.key === "purchases" ? "Daily target" : "Target"} $
-          <input type="number" min="0" step={item.key === "purchases" ? "1" : "0.5"} value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </label>
-        {mode === "target" && item.key !== "purchases" && (
-          <label>
-            by <input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
-          </label>
-        )}
-        <button type="button" className="save-btn" disabled={!dirty || saving} onClick={save}>{saving ? "Saving…" : "Save"}</button>
-      </div>
-      {msg && <div className="limit-msg">{msg}</div>}
-
-      <div className="limit-foot">{footnote}</div>
+      <div className="limit-foot">{footnote} · <Link href="/settings" className="edit-link">Edit in Settings →</Link></div>
     </article>
   );
 }
@@ -218,7 +159,6 @@ export default function Home() {
   const [liveError, setLiveError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const [reloadTick, setReloadTick] = useState(0);
   useEffect(() => {
     let stop = false;
     const load = async () => {
@@ -240,8 +180,7 @@ export default function Home() {
       stop = true;
       clearInterval(id);
     };
-  }, [reloadTick]);
-  const reload = () => setReloadTick((t) => t + 1);
+  }, []);
 
   const isLive = live !== null;
   const frozen = isLive && "frozen" in live.limit;
@@ -290,6 +229,10 @@ export default function Home() {
             Payments
             <span className="nav-count">{String(payments.length).padStart(2, "0")}</span>
           </a>
+          <Link className="nav-item" href="/settings">
+            <span className="nav-glyph grid-glyph" aria-hidden="true" />
+            Settings
+          </Link>
         </nav>
 
         <div className="sidebar-bottom">
@@ -365,7 +308,7 @@ export default function Home() {
           {isLive && credits && (
             <section className="limits-section" aria-labelledby="limits-title">
               <div className="section-label"><span className="label-mark budget-mark" /> LIMITS &amp; TARGETS</div>
-              <h2 id="limits-title" className="limits-title">For each one, choose a hard limit (blocks spend) or a spend target (tracks how much you still want to spend).</h2>
+              <h2 id="limits-title" className="limits-title">What you&apos;re tracking, as set in <Link href="/settings" className="edit-link">Settings</Link>: hard limits block spend, spend targets track how much is still to spend.</h2>
               <div className="limits-grid">
                 <TrackCard
                   key={`purchases-${live.purchases.mode}-${live.purchases.limit}-${live.purchases.target}`}
@@ -374,7 +317,6 @@ export default function Home() {
                   limitNote="Hard limit · enforced on-chain by Squads"
                   footnote={`${blockedCount} payment${blockedCount === 1 ? "" : "s"} rejected on-chain · on-chain safety limit $${live.purchases.limit}/day always applies`}
                   now={now}
-                  onSaved={reload}
                 />
                 {credits.map((c) => (
                   <TrackCard
@@ -384,8 +326,7 @@ export default function Home() {
                     limitNote={`Hard limit · agents stop calling the model (grant $${c.grantUsd})`}
                     footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
                     now={now}
-                    onSaved={reload}
-                  />
+                    />
                 ))}
               </div>
 
