@@ -1,36 +1,24 @@
+// Pays 20 tokens repeatedly until Squads rejects on-chain (limit is 100/day by default).
+// Run: npx tsx scripts/test-payments.ts
 import dotenv from 'dotenv';
 dotenv.config();
-import path from 'path';
+import { randomUUID } from 'crypto';
 import { payAsAgent } from '../wallet-service/index.js';
 
 async function run() {
-  const agentKey = process.env.AGENT_KEYPAIR_PATH || './keys/agent.json';
-  const recipient = process.env.PROVIDER_ADDRESS || 'ReplaceWithRecipientPubkey';
+  const agentKeypairPath = process.env.AGENT_KEYPAIR_PATH || './keys/agent.json';
+  const to = process.env.PROVIDER_ADDRESS;
+  if (!to) throw new Error('PROVIDER_ADDRESS not set (run scripts/setup.ts)');
 
-  console.log('Running payment tests (scaffold)');
-
-  const okAmount = 10; // base units (interpretation depends on TOKEN_MINT decimals)
-  const largeAmount = 10_000_000;
-
-  console.log('Test 1: within-limit payment (expect success)');
-  const r1 = await payAsAgent({
-    agentKeypairPath: agentKey,
-    to: recipient,
-    amount: okAmount,
-    taskId: 'test-task-1',
-    requestId: 'req-1',
-  });
-  console.log('Result 1:', r1);
-
-  console.log('Test 2: over-limit payment (expect LIMIT_EXCEEDED)');
-  const r2 = await payAsAgent({
-    agentKeypairPath: agentKey,
-    to: recipient,
-    amount: largeAmount,
-    taskId: 'test-task-2',
-    requestId: 'req-2',
-  });
-  console.log('Result 2:', r2);
+  for (let i = 1; i <= 6; i++) {
+    const r = await payAsAgent({ agentKeypairPath, to, amount: 20, taskId: 'test-task', requestId: randomUUID() });
+    if (r.ok) {
+      console.log(`#${i} paid 20 -> https://explorer.solana.com/tx/${r.signature}?cluster=devnet`);
+    } else {
+      console.log(`#${i} ${r.reason}`, r.reason === 'ERROR' ? r.detail : '');
+      if (r.reason === 'LIMIT_EXCEEDED') break;
+    }
+  }
 }
 
 run().catch((e) => {
