@@ -291,3 +291,19 @@ tr.row-blocked .amount-main { color: #ff8a73; text-decoration: line-through; }
 .settings-error { color: #ff8a73; font-size: 12px; }
 .settings-loading { color: #9aa396; font-size: 12px; }
 @media (max-width: 900px) { .settings-options { grid-template-columns: 1fr; } }
+
+.wallet-current { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: #9aa396; font-size: 11px; }
+.wallet-current b { color: #e7ebdf; font-family: Consolas, monospace; font-weight: 600; }
+.settings-fields input.wallet-input { width: 380px; max-width: 100%; }
+
+.agent-rows { display: grid; gap: 8px; }
+.agent-row { margin-top: 0; }
+.settings-fields input.agent-name { width: 190px; }
+
+.agent-provider { padding: 5px 7px; border: 1px solid var(--line); border-radius: 5px; background: #141813; color: #e7ebdf; font: 12px Consolas, monospace; }
+
+.onboarding-panel { display: grid; gap: 12px; padding: 24px 26px; min-height: 0; }
+.onboarding-panel h2 { color: #e7ebdf; font-size: 20px; font-weight: 600; }
+.onboarding-panel ol { display: grid; gap: 8px; padding-left: 18px; color: #9aa396; font-size: 12px; }
+.onboarding-panel ol b { color: #e7ebdf; }
+.onboarding-cta { justify-self: start; text-decoration: none; }

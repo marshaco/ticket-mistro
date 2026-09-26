@@ -12,6 +12,7 @@ export type UsageEntry = {
   taskId: string;
   provider: string;
   agent: string;
+  agentPublicKey?: string; // the agent's Solana public key (matched to Settings → Agents)
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -52,7 +53,11 @@ export function readProviders(): Record<string, ProviderConfig> {
 // ---------------------------------------------------------------------------
 export type Mode = "limit" | "target";
 export type TrackSetting = { mode: Mode; limit: number; target: number; expires?: string };
-export type Settings = { purchases: TrackSetting; providers: Record<string, TrackSetting> };
+// The customer's connected Squads wallet (discovered on-chain from the multisig address).
+export type Wallet = { multisig: string; vault: string; spendingLimit: string; mint: string; agents: string[]; limits: number };
+// The customer's agents: a name + the Solana public key the agent pays from.
+export type AgentEntry = { name: string; publicKey: string; provider: string }; // provider: the AI the agent runs on
+export type Settings = { purchases: TrackSetting; providers: Record<string, TrackSetting>; wallet?: Wallet; agents?: AgentEntry[] };
 
 const SETTINGS = path.resolve(ROOT, "data/tracking-settings.json");
 
@@ -71,6 +76,8 @@ export function readSettings(onChainLimit?: number): Settings {
   return {
     purchases: saved.purchases ?? { mode: "limit", limit: onChainLimit ?? 100, target: 60 },
     providers,
+    wallet: saved.wallet,
+    agents: saved.agents,
   };
 }
 

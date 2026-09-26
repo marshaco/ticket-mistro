@@ -8,6 +8,7 @@ import * as multisig from "@sqds/multisig";
 
 export type LivePayment = {
   signature: string;
+  agentName: string | null; // from Settings → Agents
   blockTime: number; // unix seconds
   amount: number; // whole tokens (TOKEN_MINT has 0 decimals)
   agent: string;
@@ -38,6 +39,8 @@ export type TaskRow = { taskId: string; agents: string[]; purchases: number; blo
 
 export type Summary = {
   mode: "live";
+  wallet: { multisig: string | null; connected: boolean; agents: string[] };
+  agents: { name: string; publicKey: string; provider: string }[]; // from Settings; empty = track every agent
   purchases: Tracked; // agent purchases today; limit mode = the on-chain Squads limit
   credits: Credits[]; // one per AI provider
   tasks: TaskRow[];
@@ -81,7 +84,13 @@ async function loadTx(connection: Connection, signature: string) {
 }
 
 async function build(): Promise<Summary> {
-  const { RPC_URL, VAULT_ADDRESS, TOKEN_MINT, SPENDING_LIMIT_ADDRESS } = process.env;
+  // Track the customer's connected wallet (Settings), else the demo wallet from .env
+  const { wallet, agents: agentList = [] } = readSettings();
+  const agentNames = new Map(agentList.map((a) => [a.publicKey, `${a.name} · ${a.provider === "Anthropic" ? "Claude" : a.provider === "Google Gemini" ? "Gemini" : a.provider}`]));
+  const RPC_URL = process.env.RPC_URL;
+  const VAULT_ADDRESS = wallet?.vault ?? process.env.VAULT_ADDRESS;
+  const TOKEN_MINT = wallet?.mint ?? process.env.TOKEN_MINT;
+  const SPENDING_LIMIT_ADDRESS = wallet?.spendingLimit ?? process.env.SPENDING_LIMIT_ADDRESS;
   if (!RPC_URL || !VAULT_ADDRESS || !TOKEN_MINT || !SPENDING_LIMIT_ADDRESS) {
     throw new Error("RPC_URL, VAULT_ADDRESS, TOKEN_MINT and SPENDING_LIMIT_ADDRESS must be set in the repo-root .env");
   }
@@ -104,6 +113,8 @@ async function build(): Promise<Summary> {
     if (memo.startsWith("task:admin-test")) continue; // wallet admin tests, not agent activity
     const info = await loadTx(connection, s.signature);
     if (!info) continue;
+    // Only track agents the customer registered in Settings
+    if (!agentNames.has(info.agent)) continue;
     if ((s.blockTime ?? 0) < since) continue;
     const errorCode = (s.err as { InstructionError?: [number, { Custom?: number }] } | null)?.InstructionError?.[1]?.Custom ?? null;
     payments.push({
@@ -111,6 +122,7 @@ async function build(): Promise<Summary> {
       blockTime: s.blockTime ?? 0,
       amount: info.amount,
       agent: info.agent,
+      agentName: agentNames.get(info.agent) ?? null,
       memo,
       status: s.err ? "blocked" : "paid",
       errorCode,
@@ -132,7 +144,11 @@ async function build(): Promise<Summary> {
   }
 
   // AI credit usage is reported off-chain by agents (agent/credits.ts, or POST /api/usage)
-  const usage = readUsage().filter((u) => u.time / 1000 >= since);
+  const usage = readUsage()
+    .filter((u) => u.time / 1000 >= since)
+    .filter((u) => u.agentPublicKey && agentNames.has(u.agentPublicKey)) // registered agents only
+    // name each model call by its agent's public key, as set in Settings → Agents
+    .map((u) => (u.agentPublicKey && agentNames.has(u.agentPublicKey) ? { ...u, agent: agentNames.get(u.agentPublicKey)! } : u));
   const providerCfg = readProviders();
   const providerNames = [...new Set([...Object.keys(providerCfg), ...usage.map((u) => u.provider)])];
   const onChainLimit = limit ? Number(limit.amount.toString()) : 0;
@@ -164,6 +180,8 @@ async function build(): Promise<Summary> {
   };
   for (const p of payments) {
     const r = row(/^task:([^|]+)/.exec(p.memo)?.[1] ?? p.memo);
+    const who = p.agentName ?? `${p.agent.slice(0, 4)}...${p.agent.slice(-4)}`;
+    if (!r.agents.includes(who)) r.agents.unshift(who);
     if (p.status === "paid") r.purchases += p.amount;
     else r.blocked += 1;
     r.lastTime = Math.max(r.lastTime, p.blockTime);
@@ -171,13 +189,15 @@ async function build(): Promise<Summary> {
   for (const u of usage) {
     const r = row(u.taskId);
     r.aiUsd += u.usd;
-    if (!r.agents.includes(`${u.agent} (${u.provider})`)) r.agents.push(`${u.agent} (${u.provider})`);
+    if (!r.agents.includes(u.agent)) r.agents.push(u.agent);
     r.lastTime = Math.max(r.lastTime, Math.floor(u.time / 1000));
   }
 
   const ata = balance.value[0]?.account.data.parsed?.info?.tokenAmount?.amount;
   return {
     mode: "live",
+    wallet: { multisig: wallet?.multisig ?? process.env.MULTISIG_ADDRESS ?? null, connected: Boolean(wallet), agents: wallet?.agents ?? [] },
+    agents: agentList,
     purchases: {
       key: "purchases",
       mode: settings.purchases.mode,

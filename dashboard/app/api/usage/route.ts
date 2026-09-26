@@ -1,5 +1,5 @@
 // Any agent, any provider, any language: report a model call here after it happens.
-// POST /api/usage  { provider, agent, model, inputTokens, outputTokens, usd, taskId?, simulated? }
+// POST /api/usage  { provider, agentPublicKey, agent?, model, inputTokens, outputTokens, usd, taskId? }
 // Response tells the agent whether that provider's hard cap is reached, so it can stop before the next call.
 import { appendUsage, readProviders, readUsage } from "../../lib-usage";
 
@@ -13,6 +13,7 @@ export async function POST(request: Request) {
     taskId: String(b.taskId ?? "untagged"),
     provider: b.provider,
     agent: String(b.agent ?? "unknown-agent"),
+    agentPublicKey: b.agentPublicKey ? String(b.agentPublicKey) : undefined,
     model: String(b.model ?? "unknown"),
     inputTokens: Number(b.inputTokens ?? 0),
     outputTokens: Number(b.outputTokens ?? 0),

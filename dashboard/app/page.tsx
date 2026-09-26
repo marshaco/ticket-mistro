@@ -12,6 +12,7 @@ type Payment = {
   memo: string;
   signature: string;
   status?: "paid" | "blocked";
+  agentName?: string | null;
 };
 
 const dailyLimit = 150;
@@ -193,6 +194,7 @@ export default function Home() {
         memo: p.memo,
         signature: p.signature,
         status: p.status,
+        agentName: p.agentName,
       }))
     : [...mockPayments].sort((a, b) => b.sortKey - a.sortKey);
   const limitAmount = isLive && !("frozen" in live.limit) ? live.limit.amount : isLive ? 0 : dailyLimit;
@@ -208,6 +210,8 @@ export default function Home() {
   const latestBlocked = payments.find((p) => p.status === "blocked");
   const vaultShort = isLive ? shortAddress(live.vault) : "8rT2...vA7k";
   const credits = isLive ? live.credits : null;
+  // Empty until the customer connects a wallet and registers at least one agent in Settings
+  const onboarding = isLive && (!live.wallet.connected || live.agents.length === 0);
   const updatedAgo = isLive ? Math.max(0, Math.round((now - live.updatedAt) / 1000)) : null;
 
   return (
@@ -262,6 +266,20 @@ export default function Home() {
             <div className="date-stamp"><span className="date-icon" aria-hidden="true">▦</span><span>TODAY <b>·</b> DEVNET</span></div>
           </div>
 
+          {onboarding && (
+            <section className="budget-panel onboarding-panel" aria-labelledby="onboarding-title">
+              <div className="section-label"><span className="label-mark budget-mark" /> GET STARTED</div>
+              <h2 id="onboarding-title">Nothing tracked yet</h2>
+              <ol>
+                <li><b>Connect your wallet:</b> paste your Squads multisig address.</li>
+                <li><b>Add your agents:</b> for each AI agent (Claude, OpenAI or Gemini), paste its public key and give it a name.</li>
+                <li><b>Choose what to track:</b> a hard limit or a spend target, for purchases and for each AI provider.</li>
+              </ol>
+              <Link href="/settings" className="save-btn onboarding-cta">Open Settings →</Link>
+            </section>
+          )}
+          {!onboarding && (
+            <>
           <section className="overview-grid" aria-label="Today's budget and blocked event">
             <article className="budget-panel">
               <div className="panel-topline">
@@ -322,7 +340,7 @@ export default function Home() {
                   <TrackCard
                     key={`${c.provider}-${c.mode}-${c.limit}-${c.target}-${c.expires}`}
                     item={c}
-                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}${c.simulated ? " · SIMULATED" : ""}`}
+                    kicker={`AI CREDITS · ${c.provider.toUpperCase()}`}
                     limitNote={`Hard limit · agents stop calling the model (grant $${c.grantUsd})`}
                     footnote={`${c.calls} model calls · ${c.agents.length ? c.agents.join(", ") : "no agents yet"}`}
                     now={now}
@@ -385,7 +403,7 @@ export default function Home() {
                       <tr key={payment.signature} className={payment.status === "blocked" ? "row-blocked" : undefined}>
                         <td><span className="time-main">Today</span><span className="time-sub">{payment.time}</span></td>
                         <td><span className="amount-main">${formatAmount(payment.amount)}</span><span className="token-name">TESTUSD</span>{payment.status === "blocked" && <span className="blocked-tag">BLOCKED</span>}</td>
-                        <td><span className="agent-chip"><span className="agent-dot" />{shortAddress(payment.agent)}</span></td>
+                        <td><span className="agent-chip"><span className="agent-dot" />{payment.agentName ? `${payment.agentName} · ${shortAddress(payment.agent)}` : shortAddress(payment.agent)}</span></td>
                         <td><span className="task-label">{parseTask(payment.memo)}</span></td>
                         <td className="explorer-cell"><a className="explorer-link" href={`https://explorer.solana.com/tx/${payment.signature}?cluster=devnet`} target="_blank" rel="noreferrer" aria-label={`Open ${payment.signature} in Solana Explorer`}>VIEW <span aria-hidden="true">↗</span></a></td>
                       </tr>
@@ -397,6 +415,8 @@ export default function Home() {
             </div>
           </section>
 
+            </>
+          )}
           <footer className="page-footer"><span>AGENTCARD TREASURY</span><span>READ-ONLY · SOLANA DEVNET</span></footer>
         </div>
       </section>
